@@ -1,16 +1,26 @@
 // Tile.cs
-// Abstract base class for all tile types.
-// Every tile in the game grid inherits from this.
+// Abstract base class for all tile types in the 3D isometric grid.
 
 using UnityEngine;
 
 public abstract class Tile : MonoBehaviour
 {
     [Header("Tile Settings")]
-    public TileType tileType;           // What kind of tile this is
-    public Vector2Int gridPosition;     // Position of this tile in the grid (column, row)
+    public TileType tileType;
+    public Vector2Int gridPosition;
+
+    [Header("Obstacle / Asymmetry Settings")]
+    [Tooltip("If true, a physical obstacle/barrier sits on this tile, blocking movement into it.")]
+    public bool hasObstacle = false;
+    public GameObject obstacleVisual;
+
+    // Checks whether the robot can move onto this tile.
+    // Blocked tiles cause movement nodes (Walk, Jump, Left, Right, Force) to do nothing (bump).
+    public virtual bool CanPlayerEnter(PlayerController player)
+    {
+        return !hasObstacle && tileType != TileType.Obstacle;
+    }
 
     // Called by PlayerController when the player steps onto this tile.
-    // Each tile subclass overrides this to define its own behaviour.
     public abstract void OnPlayerEnter(PlayerController player);
 }

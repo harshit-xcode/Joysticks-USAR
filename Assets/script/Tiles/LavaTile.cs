@@ -1,8 +1,6 @@
 // LavaTile.cs
-// Danger tile. If the player steps on this WITHOUT using a LavaBlock
-// in their code sequence, they are sent back to the Start tile.
-// If the player used a LavaBlock, the isCrossingLava flag is true
-// and the lava is crossed safely.
+// Hazard tile (Red Spikes). Any robot that lands ON this tile is destroyed and respawns at Start.
+// To cross a LavaTile safely, the robot must JUMP OVER it from the tile before it (1 -> 3, skipping 2).
 
 using UnityEngine;
 
@@ -13,20 +11,11 @@ public class LavaTile : Tile
         tileType = TileType.Lava;
     }
 
-    // Called when the player enters this tile.
-    // Checks if the player is safely crossing lava via LavaBlock.
     public override void OnPlayerEnter(PlayerController player)
     {
-        if (player.isCrossingLava)
-        {
-            // Player used the LavaBlock — safe crossing
-            Debug.Log("Player crossed the Lava tile safely!");
-        }
-        else
-        {
-            // Player walked onto lava without LavaBlock — respawn
-            Debug.Log("Player touched Lava! Respawning...");
-            player.GetComponent<PlayerRespawn>().Respawn();
-        }
+        Debug.Log($"Player landed on Hazard tile at {gridPosition}! Respawning...");
+        AudioManager.Instance?.PlayLavaFail();
+        var respawn = player.GetComponent<PlayerRespawn>();
+        if (respawn != null) respawn.Respawn();
     }
 }

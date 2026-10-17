@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-// Stores only editable commands. START and STOP are always supplied by ProgramSequence.
+// Stores ordered editable commands between START and END.
 public sealed class ProgramCommandList
 {
     readonly List<BlockType> commands = new List<BlockType>();
@@ -9,9 +9,20 @@ public sealed class ProgramCommandList
 
     public bool Append(BlockType type)
     {
-        if (type != BlockType.Walk && type != BlockType.Lava) return false;
+        if (!ProgramSequence.IsEditableCommand(type)) return false;
         commands.Add(type);
         return true;
+    }
+
+    public void SetCommands(IEnumerable<BlockType> newCommands)
+    {
+        commands.Clear();
+        if (newCommands == null) return;
+        foreach (var t in newCommands)
+        {
+            if (ProgramSequence.IsEditableCommand(t))
+                commands.Add(t);
+        }
     }
 
     public bool RemoveAt(int index)

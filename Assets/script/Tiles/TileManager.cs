@@ -1,7 +1,6 @@
 // TileManager.cs
-// Manages the entire tile grid for a level.
-// Stores all tiles in a dictionary for fast lookup by grid position.
-// Also tracks the Start tile so the player can respawn there.
+// Manages the entire 3D isometric tile grid for the active level.
+// Supports both scene-authored tiles and data-driven level generation.
 
 using System.Collections.Generic;
 using UnityEngine;
@@ -10,58 +9,76 @@ public class TileManager : MonoBehaviour
 {
     public static TileManager Instance { get; private set; }
 
-    // All tiles in the level, indexed by their grid position
-    private Dictionary<Vector2Int, Tile> tileGrid = new Dictionary<Vector2Int, Tile>();
+    [Header("Grid Settings")]
+    [Tooltip("World-space distance between adjacent grid cells.")]
+    public float cellSpacing = 2.0f;
 
-    // Reference to the start tile (used for respawning)
+    private readonly Dictionary<Vector2Int, Tile> tileGrid = new Dictionary<Vector2Int, Tile>();
     private StartTile startTile;
+    private EndTile endTile;
 
-    // Awake runs before any Start() — so tiles are registered
-    // before LevelManager.Start() tries to access them.
+    public IReadOnlyDictionary<Vector2Int, Tile> AllTiles => tileGrid;
+
     private void Awake()
     {
-        // Singleton setup
         if (Instance != null && Instance != this)
         {
             Destroy(gameObject);
             return;
         }
         Instance = this;
-
-        // Register all tiles immediately
         RegisterAllTiles();
     }
 
-    // Finds all Tile components in the scene and registers them in the grid dictionary.
-    // Called once at level load via Awake().
-    private void RegisterAllTiles()
+    // Scans all active Tile components in the scene and indexes them by gridPosition.
+    public void RegisterAllTiles()
     {
-        Tile[] allTiles = FindObjectsByType<Tile>(FindObjectsSortMode.None);
+        tileGrid.Clear();
+        startTile = null;
+        endTile = null;
 
+        Tile[] allTiles = FindObjectsByType<Tile>(FindObjectsSortMode.None);
         foreach (Tile tile in allTiles)
         {
+            if (tile == null || !tile.gameObject.activeInHierarchy) continue;
+
             tileGrid[tile.gridPosition] = tile;
 
-            // Cache the start tile separately
-            if (tile is StartTile st)
-            {
-                startTile = st;
-            }
+            if (tile is StartTile st) startTile = st;
+            else if (tile is EndTile et) endTile = et;
         }
 
         Debug.Log($"TileManager: Registered {tileGrid.Count} tiles.");
     }
 
-    // Returns the tile at the given grid position, or null if none exists.
     public Tile GetTile(Vector2Int position)
     {
+        if (tileGrid.Count == 0) RegisterAllTiles();
         tileGrid.TryGetValue(position, out Tile tile);
         return tile;
     }
 
-    // Returns the Start tile (used for player respawn).
     public StartTile GetStartTile()
     {
+        if (startTile == null) RegisterAllTiles();
         return startTile;
+    }
+
+    public EndTile GetEndTile()
+    {
+        if (endTile == null) RegisterAllTiles();
+        return endTile;
+    }
+
+    public Vector3 GridToWorld(Vector2Int gridPos, float yOffset = 0f)
+    {
+        Tile t = GetTile(gridPos);
+        if (t != null)
+            return t.transform.position + Vector3.up * yOffset;
+
+        Vector3 origin = startTile != null
+            ? startTile.transform.position - new Vector3(startTile.gridPosition.x * cellSpacing, 0f, startTile.gridPosition.y * cellSpacing)
+            : Vector3.zero;
+        return origin + new Vector3(gridPos.x * cellSpacing, yOffset, gridPos.y * cellSpacing);
     }
 }

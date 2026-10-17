@@ -1,8 +1,8 @@
 // LevelManager.cs
-// Manages the state of the current level.
-// Handles win condition (player reaches End tile) and
-// level restart (called after respawn or manually by the player).
+// Manages the state of the current level and the 7-level scalable campaign progression.
+// Supports both Edit-Mode scene-authored boards and dynamic multi-level transitions.
 
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -10,55 +10,148 @@ public class LevelManager : MonoBehaviour
 {
     public static LevelManager Instance { get; private set; }
 
-    [Header("References")]
-    public PlayerController player;       // The robot player
-    public UIManager uiManager;           // The coding interface
+    [Header("Core References")]
+    public PlayerController player;
+    public UIManager uiManager;
+    public Transform boardRoot;
+    public float cellSpacing = 2.0f;
 
-    // Has the level been won?
+    [Header("7-Level Scalable Campaign")]
+    [Min(0)] public int currentLevelIndex = 0;
+    public List<LevelDefinition> campaignLevels = new List<LevelDefinition>();
+
+    [Header("Optional Custom 3D Prefab Overrides (Drop Custom Assets Here)")]
+    public GameObject customStartTilePrefab;
+    public GameObject customFreeTilePrefab;
+    public GameObject customLavaTilePrefab;
+    public GameObject customObstacleTilePrefab;
+    public GameObject customEndTilePrefab;
+    public GameObject customRobotVisualPrefab;
+
     private bool levelWon = false;
     public bool IsLevelComplete => levelWon;
 
+    public LevelDefinition CurrentLevel
+    {
+        get
+        {
+            EnsureCampaignInitialized();
+            int clamped = Mathf.Clamp(currentLevelIndex, 0, campaignLevels.Count - 1);
+            return campaignLevels[clamped];
+        }
+    }
+
     private void Awake()
     {
-        // Singleton setup
         if (Instance != null && Instance != this)
         {
             Destroy(gameObject);
             return;
         }
         Instance = this;
+        EnsureCampaignInitialized();
+    }
+
+    public void EnsureCampaignInitialized()
+    {
+        if (campaignLevels == null || campaignLevels.Count != 4 || campaignLevels[3].title != "PROTOCOL 04 // PHASE WEAVE")
+        {
+            campaignLevels = LevelCampaignCatalog.CreateCampaignLevels();
+        }
     }
 
     private void Start()
     {
-        // Place the player on the start tile at the beginning of the level
-        player.PlaceOnStartTile();
+        if (player == null) player = FindFirstObjectByType<PlayerController>();
+        if (uiManager == null) uiManager = FindFirstObjectByType<UIManager>();
+        if (boardRoot == null)
+        {
+            var existingBoard = GameObject.Find("GameObject");
+            if (existingBoard == null) existingBoard = GameObject.Find("IsometricBoard");
+            if (existingBoard != null) boardRoot = existingBoard.transform;
+        }
+
+        // Ensure robot has its 3D silhouette visual and is placed on Start
+        if (player != null)
+        {
+            IsometricBoardBuilder.StyleRobot(player, customRobotVisualPrefab);
+        }
+
+        LoadCampaignLevel(currentLevelIndex, true);
     }
 
-    // Called by EndTile when the player steps on it.
-    // Triggers the win state for the level.
+    public void LoadCampaignLevel(int index, bool rebuildBoard = true)
+    {
+        EnsureCampaignInitialized();
+        currentLevelIndex = Mathf.Clamp(index, 0, campaignLevels.Count - 1);
+        levelWon = false;
+
+        var executor = FindFirstObjectByType<CodeExecutor>();
+        executor?.StopExecution();
+
+        LevelDefinition level = campaignLevels[currentLevelIndex];
+
+        if (rebuildBoard && boardRoot != null)
+        {
+            IsometricBoardBuilder.BuildLevelOnBoard(
+                boardRoot,
+                level,
+                cellSpacing,
+                customStartTilePrefab,
+                customFreeTilePrefab,
+                customLavaTilePrefab,
+                customObstacleTilePrefab,
+                customEndTilePrefab);
+        }
+
+        if (TileManager.Instance != null)
+        {
+            TileManager.Instance.cellSpacing = cellSpacing;
+            TileManager.Instance.RegisterAllTiles();
+        }
+
+        if (Camera.main != null)
+        {
+            IsometricBoardBuilder.FrameCameraForLevel(Camera.main, level, cellSpacing);
+        }
+
+        if (player != null)
+        {
+            player.GetComponent<PlayerRespawn>()?.CancelPendingRespawn();
+            player.PlaceOnStartTile();
+        }
+
+        if (uiManager == null)
+            uiManager = UIManager.Instance != null ? UIManager.Instance : FindFirstObjectByType<UIManager>();
+        if (uiManager != null)
+        {
+            uiManager.ConfigureForLevel(level, currentLevelIndex, campaignLevels.Count);
+        }
+
+        Debug.Log($"LevelManager: Loaded {level.title} (Level {currentLevelIndex + 1}/{campaignLevels.Count}).");
+    }
+
     public void Win()
     {
-        if (levelWon) return;    // Prevent triggering win multiple times
+        if (levelWon) return;
 
         levelWon = true;
-        player.currentState = PlayerState.Win;
+        if (player != null) player.currentState = PlayerState.Win;
 
-        // Stop any running code
         CodeExecutor executor = FindFirstObjectByType<CodeExecutor>();
         executor?.CompleteLevel();
 
-        Debug.Log("LevelManager: Level complete! 🎉");
+        Debug.Log($"LevelManager: {CurrentLevel.title} Complete!");
 
-        // TODO: Show win UI panel / trigger win animation here
-        // For now, log to console. You can hook up a Win panel in the Inspector.
+        if (uiManager != null)
+        {
+            bool hasNext = currentLevelIndex + 1 < campaignLevels.Count;
+            uiManager.ShowVictoryBanner(CurrentLevel, hasNext);
+        }
     }
 
-    // Restarts the current level from scratch.
-    // Resets player position, clears slots, reloads state.
     public void RestartLevel() { ResetLevel(true); }
 
-    // The RESET button returns the robot to Start without deleting the user's program.
     public void ResetForRetry() { ResetLevel(false); }
 
     void ResetLevel(bool clearProgram)
@@ -68,28 +161,36 @@ public class LevelManager : MonoBehaviour
         executor?.StopExecution();
         if (player != null)
         {
-            // A delayed lava respawn must not teleport the robot during a new run.
             player.GetComponent<PlayerRespawn>()?.CancelPendingRespawn();
             player.PlaceOnStartTile();
         }
-        if (clearProgram && uiManager != null) uiManager.ClearAllSlots();
+        if (uiManager != null)
+        {
+            uiManager.HideVictoryBanner();
+            if (clearProgram) uiManager.ClearAllSlots();
+        }
         Debug.Log("Level reset. Robot is back at Start.");
     }
 
-    // Loads the next level scene by build index.
-    // Call this from your Win UI button.
     public void LoadNextLevel()
     {
-        int nextIndex = SceneManager.GetActiveScene().buildIndex + 1;
-
-        if (nextIndex < SceneManager.sceneCountInBuildSettings)
+        EnsureCampaignInitialized();
+        if (currentLevelIndex + 1 < campaignLevels.Count)
         {
-            SceneManager.LoadScene(nextIndex);
+            LoadCampaignLevel(currentLevelIndex + 1, true);
         }
         else
         {
-            Debug.Log("LevelManager: No more levels — you've completed the game!");
-            // TODO: Show end-game / credits screen
+            int nextSceneIndex = SceneManager.GetActiveScene().buildIndex + 1;
+            if (nextSceneIndex > 0 && nextSceneIndex < SceneManager.sceneCountInBuildSettings)
+            {
+                SceneManager.LoadScene(nextSceneIndex);
+            }
+            else
+            {
+                Debug.Log("LevelManager: All 4 Chrono-Loop Protocols complete! Looping back to Protocol 01.");
+                LoadCampaignLevel(0, true);
+            }
         }
     }
 }

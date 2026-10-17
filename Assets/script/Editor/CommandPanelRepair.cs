@@ -1,205 +1,245 @@
 #if UNITY_EDITOR
-using System.Linq;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
-using UnityEngine.UI;
-using TMPro;
+using UnityEngine.EventSystems;
 
-// Repair the existing custom scene; preserve its level objects and command logic.
-[InitializeOnLoad]
+// Editor builder and scene setup utility for the Isometric 3D + Node-Graph Puzzle Game.
 public static class CommandPanelRepair
 {
-    const string PendingKey = "Joysticks.CommandPanelRepair.fixed-endpoints.v2";
-
-    static CommandPanelRepair()
-    {
-        EditorApplication.playModeStateChanged += OnPlayMode;
-        EditorApplication.delayCall += TryAutomaticRepair;
-    }
-
-    static void OnPlayMode(PlayModeStateChange state)
-    {
-        if (state == PlayModeStateChange.EnteredEditMode)
-            EditorApplication.delayCall += TryAutomaticRepair;
-    }
-
-    static void TryAutomaticRepair()
-    {
-        if (EditorApplication.isPlayingOrWillChangePlaymode || SessionState.GetBool(PendingKey, false)) return;
-        var manager = Object.FindFirstObjectByType<UIManager>();
-        if (manager == null) return;
-        if (Repair(manager)) SessionState.SetBool(PendingKey, true);
-    }
-
-    [MenuItem("Tools/Joysticks/Repair Command Panel")]
+    [MenuItem("Tools/Joysticks/Setup GameJamLevel 1 (3D Isometric + Node Lab)")]
     public static void RepairFromMenu()
     {
         if (EditorApplication.isPlayingOrWillChangePlaymode)
         {
-            Debug.LogWarning("Stop Play Mode before repairing the command panel.");
+            Debug.LogWarning("Stop Play Mode before running Scene Setup.");
             return;
         }
-        var manager = Object.FindFirstObjectByType<UIManager>();
-        if (manager == null) { Debug.LogWarning("Open your custom level scene containing UIManager first."); return; }
-        Repair(manager);
+        SetupActiveSceneForLevel(0);
     }
 
-    static bool Repair(UIManager manager)
+    [MenuItem("Tools/Joysticks/Preview Level 1 (Closed Loop - Walk)")]
+    public static void PreviewL1() => SetupActiveSceneForLevel(0);
+
+    [MenuItem("Tools/Joysticks/Preview Level 2 (Phase Leap - True Jump)")]
+    public static void PreviewL2() => SetupActiveSceneForLevel(1);
+
+    [MenuItem("Tools/Joysticks/Preview Level 3 (Wall Clamp - Obstacle Asymmetry)")]
+    public static void PreviewL3() => SetupActiveSceneForLevel(2);
+
+    [MenuItem("Tools/Joysticks/Preview Level 4 (Phase Weave - Grand Finale)")]
+    public static void PreviewL4() => SetupActiveSceneForLevel(3);
+
+    public static void SetupActiveSceneForLevel(int levelIndex)
     {
-        var scene = manager.gameObject.scene;
-        var blocks = Object.FindObjectsByType<BlockDragDrop>(FindObjectsInactive.Include, FindObjectsSortMode.None)
-            .Where(b => b.gameObject.scene == scene).OrderBy(b => b.blockType).ToArray();
-        if (blocks.Length == 0) return false;
-        var canvas = blocks[0].GetComponentInParent<Canvas>(true);
-        if (canvas == null) { Debug.LogWarning("Command buttons must be under a Canvas."); return false; }
-        var palette = blocks[0].transform.parent as RectTransform;
-        var slots = manager.sequenceSlots.Where(s => s != null).GroupBy(s => s.gameObject).Select(g => g.First()).ToArray();
-        if (palette == null || slots.Length == 0) return false;
-        var sequence = slots[0].transform.parent as RectTransform;
-        if (sequence == null || sequence == palette) return false;
-        // Only repair the known structure: separate palette/sequence siblings under a Canvas.
-        if (palette.parent != canvas.transform || sequence.parent != canvas.transform)
-        { Debug.LogWarning("Command layout differs from the expected Canvas/PalettePanel/SequencePanel structure."); return false; }
+        AssetDatabase.Refresh();
+        EnsureTextureImportSettings();
 
-        int group = Undo.GetCurrentGroup();
-        Undo.SetCurrentGroupName("Repair command palette and program slots");
-        Undo.RecordObject(canvas, "Show UI Canvas");
-        canvas.enabled = true;
-        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        Undo.RecordObject(canvas.transform, "Reset Canvas scale");
-        canvas.transform.localScale = Vector3.one;
-        var scaler = canvas.GetComponent<CanvasScaler>();
-        if (scaler == null) scaler = Undo.AddComponent<CanvasScaler>(canvas.gameObject);
-        Undo.RecordObject(scaler, "Scale command interface");
-        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-        scaler.referenceResolution = new Vector2(1440, 900);
-        scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
-        scaler.matchWidthOrHeight = .5f;
+        var scene = EditorSceneManager.GetActiveScene();
 
-        Panel(palette, new Vector2(0, 0), new Vector2(.24f, 1));
-        Panel(sequence, new Vector2(.76f, 0), new Vector2(1, 1));
-        Heading(palette, "Commands heading", "COMMANDS");
-        Heading(sequence, "Program heading", "YOUR PROGRAM");
+        // 1. Ensure Managers exist & are wired
+        var tileManager = Object.FindFirstObjectByType<TileManager>();
+        if (tileManager == null)
+            tileManager = new GameObject("TileManager").AddComponent<TileManager>();
 
-        for (int i = 0; i < blocks.Length; i++)
+        var levelManager = Object.FindFirstObjectByType<LevelManager>();
+        if (levelManager == null)
+            levelManager = new GameObject("LevelManager").AddComponent<LevelManager>();
+
+        var codeExecutor = Object.FindFirstObjectByType<CodeExecutor>();
+        if (codeExecutor == null)
+            codeExecutor = new GameObject("CodeExecuter").AddComponent<CodeExecutor>();
+
+        var uiManager = Object.FindFirstObjectByType<UIManager>();
+        if (uiManager == null)
+            uiManager = new GameObject("UIManager").AddComponent<UIManager>();
+
+        var audioManager = Object.FindFirstObjectByType<AudioManager>();
+        if (audioManager == null)
+            audioManager = new GameObject("AudioManager").AddComponent<AudioManager>();
+
+        WireAudioAssets(audioManager);
+        WireUiSpritesAndPrefabs(uiManager);
+
+        // 2. Ensure Board Root
+        GameObject boardObj = GameObject.Find("GameObject");
+        if (boardObj == null) boardObj = GameObject.Find("IsometricBoard");
+        if (boardObj == null) boardObj = new GameObject("GameObject");
+
+        // 3. Ensure Robot Player
+        var player = Object.FindFirstObjectByType<PlayerController>();
+        if (player == null)
         {
-            var block = blocks[i];
-            if (block.transform.parent != palette) continue;
-            Row(block.transform as RectTransform, -65 - i * 68, 52);
-            var image = block.GetComponent<Image>();
-            if (image != null)
-            {
-                Undo.RecordObject(image, "Show command button");
-                image.enabled = true;
-                image.raycastTarget = true;
-                image.color = block.blockType == BlockType.Lava ? new Color(.8f, .3f, .1f) : new Color(.15f, .4f, .7f);
-            }
-            Label(block.transform, "Command label", CommandLabels.For(block.blockType), Color.white);
+            var robotGo = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+            robotGo.name = "Robot";
+            player = robotGo.AddComponent<PlayerController>();
+            robotGo.AddComponent<PlayerRespawn>();
         }
-        for (int i = 0; i < slots.Length; i++)
+        if (player.GetComponent<PlayerRespawn>() == null)
+            player.gameObject.AddComponent<PlayerRespawn>();
+
+        // 4. Wire references across managers
+        levelManager.player = player;
+        levelManager.uiManager = uiManager;
+        levelManager.boardRoot = boardObj.transform;
+        levelManager.cellSpacing = 2.0f;
+        levelManager.campaignLevels = LevelCampaignCatalog.CreateDefault7Levels();
+        levelManager.currentLevelIndex = Mathf.Clamp(levelIndex, 0, levelManager.campaignLevels.Count - 1);
+
+        codeExecutor.player = player;
+        uiManager.codeExecutor = codeExecutor;
+        uiManager.player = player;
+
+        // 5. Ensure EventSystem
+        var es = Object.FindFirstObjectByType<EventSystem>();
+        if (es == null)
         {
-            Row(slots[i].transform as RectTransform, -65 - i * 64, 50);
-            var image = slots[i].GetComponent<Image>();
-            if (image != null)
-            {
-                Undo.RecordObject(image, "Show program slot");
-                image.enabled = true;
-                image.raycastTarget = true;
-                image.color = new Color(.8f, .85f, .9f);
-            }
-            var label = Label(slots[i].transform, "Slot label", "Empty", Color.black);
-            foreach (var slot in slots[i].GetComponents<BlockSlot>())
-            {
-                Undo.RecordObject(slot, "Connect slot visuals");
-                slot.slotBackground = image;
-                slot.slotLabel = label;
-            }
+            var esGo = new GameObject("EventSystem", typeof(EventSystem), typeof(StandaloneInputModule));
         }
-        foreach (var button in sequence.GetComponentsInChildren<RunButton>(true))
+
+        // 6. Ensure Directional Light
+        var light = Object.FindFirstObjectByType<Light>();
+        if (light == null)
         {
-            Row(button.transform as RectTransform, -85 - slots.Length * 64, 52);
-            Label(button.transform, "Run label", "RUN", Color.black);
+            light = new GameObject("Directional Light").AddComponent<Light>();
+            light.type = LightType.Directional;
         }
-        // The final frame reserves independent START/STOP rows outside the editable list.
-        foreach (var rect in sequence.GetComponentsInChildren<RectTransform>(true))
-            Undo.RecordObject(rect, "Position fixed program frame");
-        foreach (var block in blocks) Undo.RecordObject(block.gameObject, "Hide automatic boundary commands");
-        var oldStart = sequence.Find("Fixed Start");
-        var oldStop = sequence.Find("Fixed Stop");
-        manager.ConfigureFixedProgramFrame();
-        if (oldStart == null && sequence.Find("Fixed Start") != null)
-            Undo.RegisterCreatedObjectUndo(sequence.Find("Fixed Start").gameObject, "Create permanent START");
-        if (oldStop == null && sequence.Find("Fixed Stop") != null)
-            Undo.RegisterCreatedObjectUndo(sequence.Find("Fixed Stop").gameObject, "Create permanent STOP");
-        Canvas.ForceUpdateCanvases();
-        Undo.CollapseUndoOperations(group);
+        light.transform.rotation = Quaternion.Euler(48f, -38f, 0f);
+        light.intensity = 1.25f;
+        light.color = new Color(1.0f, 0.92f, 0.88f);
+        RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
+        RenderSettings.ambientLight = new Color(0.42f, 0.34f, 0.36f);
+
+        // 7. Build 3D Isometric Board + Style Robot + Frame Camera + Build Split-Screen UI
+        LevelDefinition targetLevel = levelManager.campaignLevels[levelManager.currentLevelIndex];
+        IsometricBoardBuilder.BuildLevelOnBoard(
+            boardObj.transform,
+            targetLevel,
+            levelManager.cellSpacing,
+            levelManager.customStartTilePrefab,
+            levelManager.customFreeTilePrefab,
+            levelManager.customLavaTilePrefab,
+            levelManager.customObstacleTilePrefab,
+            levelManager.customEndTilePrefab);
+
+        tileManager.cellSpacing = levelManager.cellSpacing;
+        tileManager.RegisterAllTiles();
+
+        IsometricBoardBuilder.StyleRobot(player, levelManager.customRobotVisualPrefab);
+        player.PlaceOnStartTile();
+
+        if (Camera.main != null)
+        {
+            IsometricBoardBuilder.FrameCameraForLevel(Camera.main, targetLevel, levelManager.cellSpacing);
+        }
+
+        uiManager.EnsureSplitScreenNodeLabUI();
+        uiManager.ConfigureForLevel(targetLevel, levelManager.currentLevelIndex, levelManager.campaignLevels.Count);
+
         EditorSceneManager.MarkSceneDirty(scene);
-        Debug.Log("Command panel repaired. Commands are on the left; program slots and RUN are on the right. Save the scene, then press Play.");
-        return true;
+        EditorSceneManager.SaveScene(scene);
+        Debug.Log($"Scene '{scene.name}' configured and saved for {targetLevel.title}!");
     }
 
-    static void Panel(RectTransform rect, Vector2 min, Vector2 max)
+    private static void EnsureTextureImportSettings()
     {
-        Undo.RecordObject(rect, "Position side panel");
-        rect.anchorMin = min; rect.anchorMax = max;
-        rect.offsetMin = rect.offsetMax = Vector2.zero;
-        rect.localScale = Vector3.one;
-        if (!rect.gameObject.activeSelf) { Undo.RecordObject(rect.gameObject, "Enable panel"); rect.gameObject.SetActive(true); }
-        var image = rect.GetComponent<Image>();
-        if (image != null)
+        string[] paths =
         {
-            Undo.RecordObject(image, "Style side panel");
-            image.color = new Color(.07f, .1f, .16f, .96f);
-            image.raycastTarget = false;
+            "Assets/Textures/UI/NodeCardFrame.png",
+            "Assets/Textures/UI/LedPill.png",
+            "Assets/Textures/UI/PortSquare.png",
+            "Assets/Textures/UI/PortTriangle.png",
+            "Assets/Textures/UI/Icon_Walk.png",
+            "Assets/Textures/UI/Icon_Left.png",
+            "Assets/Textures/UI/Icon_Right.png",
+            "Assets/Textures/UI/Icon_Jump.png",
+            "Assets/Textures/UI/Icon_Force.png",
+            "Assets/Textures/UI/Icon_Start.png",
+            "Assets/Textures/UI/Icon_End.png",
+            "Assets/Textures/UI/Icon_Wait.png",
+            "Assets/Textures/UI/Icon_PlayBtn.png",
+            "Assets/Textures/UI/Icon_StopBtn.png",
+            "Assets/Textures/UI/Icon_ResetBtn.png",
+            "Assets/Textures/UI/LabGridTile.png",
+            "Assets/Resources/LoopLab/NodeCardFrame.png",
+            "Assets/Resources/LoopLab/LedPill.png",
+            "Assets/Resources/LoopLab/PortSquare.png",
+            "Assets/Resources/LoopLab/PortTriangle.png",
+            "Assets/Resources/LoopLab/Icon_Walk.png",
+            "Assets/Resources/LoopLab/Icon_Left.png",
+            "Assets/Resources/LoopLab/Icon_Right.png",
+            "Assets/Resources/LoopLab/Icon_Jump.png",
+            "Assets/Resources/LoopLab/Icon_Force.png",
+            "Assets/Resources/LoopLab/Icon_Start.png",
+            "Assets/Resources/LoopLab/Icon_End.png",
+            "Assets/Resources/LoopLab/Icon_Wait.png",
+            "Assets/Resources/LoopLab/Icon_PlayBtn.png",
+            "Assets/Resources/LoopLab/Icon_StopBtn.png",
+            "Assets/Resources/LoopLab/Icon_ResetBtn.png",
+            "Assets/Resources/LoopLab/LabGridTile.png"
+        };
+
+        foreach (string p in paths)
+        {
+            var importer = AssetImporter.GetAtPath(p) as TextureImporter;
+            if (importer == null) continue;
+            bool changed = false;
+            if (importer.textureType != TextureImporterType.Sprite)
+            {
+                importer.textureType = TextureImporterType.Sprite;
+                changed = true;
+            }
+            if (importer.spriteImportMode != SpriteImportMode.Single)
+            {
+                importer.spriteImportMode = SpriteImportMode.Single;
+                changed = true;
+            }
+            if (p.Contains("LabGridTile") && importer.wrapMode != TextureWrapMode.Repeat)
+            {
+                importer.wrapMode = TextureWrapMode.Repeat;
+                changed = true;
+            }
+            if (changed) importer.SaveAndReimport();
         }
     }
 
-    static void Row(RectTransform rect, float y, float height)
+    private static void WireAudioAssets(AudioManager audio)
     {
-        if (rect == null) return;
-        Undo.RecordObject(rect, "Position UI row");
-        rect.anchorMin = new Vector2(0, 1); rect.anchorMax = Vector2.one;
-        rect.pivot = new Vector2(.5f, 1);
-        rect.anchoredPosition = new Vector2(0, y);
-        rect.sizeDelta = new Vector2(-28, height);
-        rect.localScale = Vector3.one;
+        if (audio == null) return;
+        audio.backgroundMusic = AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Audio/BGM_FactoryLoop.wav");
+        audio.walkSfx = AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Audio/SFX_Walk.wav");
+        audio.jumpSfx = AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Audio/SFX_Jump.wav");
+        audio.forceSfx = AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Audio/SFX_Force.wav");
+        audio.bumpSfx = AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Audio/SFX_Bump.wav");
+        audio.lavaFailSfx = AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Audio/SFX_LavaFail.wav");
+        audio.nodePlaceSfx = AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Audio/SFX_NodePlace.wav");
+        audio.nodeConnectSfx = AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Audio/SFX_NodeConnect.wav");
+        audio.winSfx = AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Audio/SFX_Win.wav");
+        EditorUtility.SetDirty(audio);
     }
 
-    static void Heading(RectTransform parent, string name, string text)
+    private static void WireUiSpritesAndPrefabs(UIManager ui)
     {
-        var existing = parent.Find(name);
-        var label = existing != null ? existing.GetComponent<TextMeshProUGUI>() : null;
-        if (label == null)
-        {
-            var obj = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
-            Undo.RegisterCreatedObjectUndo(obj, "Create panel heading");
-            obj.transform.SetParent(parent, false);
-            label = obj.GetComponent<TextMeshProUGUI>();
-        }
-        Row(label.rectTransform, -15, 35);
-        Undo.RecordObject(label, "Name panel heading");
-        label.text = text; label.fontSize = 24; label.color = Color.white;
-        label.alignment = TextAlignmentOptions.Center; label.raycastTarget = false;
-    }
+        if (ui == null) return;
+        ui.nodeCardFrameSprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Textures/UI/NodeCardFrame.png");
+        ui.ledPillSprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Textures/UI/LedPill.png");
+        ui.portSquareSprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Textures/UI/PortSquare.png");
+        ui.portTriangleSprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Textures/UI/PortTriangle.png");
+        ui.labGridTileSprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Textures/UI/LabGridTile.png");
+        ui.playBtnSprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Textures/UI/Icon_PlayBtn.png");
+        ui.stopBtnSprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Textures/UI/Icon_StopBtn.png");
+        ui.resetBtnSprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Textures/UI/Icon_ResetBtn.png");
 
-    static TextMeshProUGUI Label(Transform parent, string name, string text, Color color)
-    {
-        var label = parent.GetComponentInChildren<TextMeshProUGUI>(true);
-        if (label == null)
-        {
-            var obj = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
-            Undo.RegisterCreatedObjectUndo(obj, "Create command label");
-            obj.transform.SetParent(parent, false);
-            label = obj.GetComponent<TextMeshProUGUI>();
-        }
-        Undo.RecordObject(label, "Set command label");
-        Undo.RecordObject(label.rectTransform, "Fit command label");
-        label.text = text; label.fontSize = 22; label.color = color;
-        label.alignment = TextAlignmentOptions.Center; label.raycastTarget = false;
-        label.rectTransform.anchorMin = Vector2.zero; label.rectTransform.anchorMax = Vector2.one;
-        label.rectTransform.offsetMin = label.rectTransform.offsetMax = Vector2.zero;
-        return label;
+        if (ui.startBlockPrefab == null)
+            ui.startBlockPrefab = AssetDatabase.LoadAssetAtPath<StartBlock>("Assets/Prefabs/StartBlockPrefab.prefab");
+        if (ui.walkBlockPrefab == null)
+            ui.walkBlockPrefab = AssetDatabase.LoadAssetAtPath<WalkBlock>("Assets/Prefabs/WalkBlockPrefab.prefab");
+        if (ui.lavaBlockPrefab == null)
+            ui.lavaBlockPrefab = AssetDatabase.LoadAssetAtPath<LavaBlock>("Assets/Prefabs/LavaBlockPrefab.prefab");
+        if (ui.stopBlockPrefab == null)
+            ui.stopBlockPrefab = AssetDatabase.LoadAssetAtPath<StopBlock>("Assets/Prefabs/StopBlockPrefab.prefab");
+
+        EditorUtility.SetDirty(ui);
     }
 }
 #endif

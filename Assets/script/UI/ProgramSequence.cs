@@ -1,10 +1,18 @@
 using System;
 using System.Collections.Generic;
 
-// The player edits only the body. Exactly one START and STOP wrap every program.
+// The player edits the connected nodes between START and END.
 public static class ProgramSequence
 {
-    public static bool IsBoundary(BlockType type) { return type == BlockType.Start || type == BlockType.Stop; }
+    public static bool IsBoundary(BlockType type)
+    {
+        return type == BlockType.Start || type == BlockType.Stop;
+    }
+
+    public static bool IsEditableCommand(BlockType type)
+    {
+        return !IsBoundary(type) && Enum.IsDefined(typeof(BlockType), type);
+    }
 
     public static List<BlockType> WithFixedEndpoints(IEnumerable<BlockType> body)
     {
@@ -13,8 +21,8 @@ public static class ProgramSequence
         foreach (var type in body)
         {
             if (IsBoundary(type)) continue;
-            if (type != BlockType.Walk && type != BlockType.Lava)
-                throw new ArgumentException("Unknown editable command.", nameof(body));
+            if (!IsEditableCommand(type))
+                throw new ArgumentException("Unknown editable command: " + type, nameof(body));
             commands.Add(type);
         }
         commands.Add(BlockType.Stop);
