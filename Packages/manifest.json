@@ -1,5 +1,9 @@
 {
   "dependencies": {
+    "com.unity.ai.assistant": "2.20.0-pre.2",
+    "com.unity.ai.inference": "2.6.1",
+    "com.unity.pipeline": "0.8.0-exp.1",
+    "com.unity.postprocessing": "3.5.4",
     "com.unity.ugui": "2.0.0",
     "com.unity.modules.audio": "1.0.0",
     "com.unity.modules.imgui": "1.0.0",
@@ -7,6 +11,6 @@
     "com.unity.modules.physics": "1.0.0",
     "com.unity.modules.ui": "1.0.0",
     "com.unity.modules.uielements": "1.0.0",
-    "com.unity.pipeline": "0.8.0-exp.1"
+    "com.unity.modules.video": "1.0.0"
   }
 }
