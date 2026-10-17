@@ -107,3 +107,11 @@ InitTestScene*.unity*
 
 # Auto-generated cache in Assets folder
 /[Aa]ssets/[Ss]ceneDependencyCache*
+
+# Optional command-line rules checker
+/Tools/**/bin/
+/Tools/**/obj/
+.DS_Store
+
+# Keep the optional source-controlled test project
+!/Tools/RulesCheck/RulesCheck.csproj
