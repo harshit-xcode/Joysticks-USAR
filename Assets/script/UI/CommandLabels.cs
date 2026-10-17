@@ -14,7 +14,7 @@ public static class CommandLabels
             case BlockType.MoveLeft:  return "LEFT";
             case BlockType.MoveRight: return "RIGHT";
             case BlockType.Force:     return "STRIDE";
-            case BlockType.Wait:      return "WAIT";
+            case BlockType.Wait:      return "PULSE";
             default:                  return type.ToString().ToUpperInvariant();
         }
     }
@@ -30,7 +30,7 @@ public static class CommandLabels
             case BlockType.MoveRight: return "SIDE R";
             case BlockType.Stop:      return "REPEAT";
             case BlockType.Force:     return "+2 TILES";
-            case BlockType.Wait:      return "HOLD 1";
+            case BlockType.Wait:      return "FLIP GATE";
             default:                  return "MODULE";
         }
     }
@@ -46,7 +46,7 @@ public static class CommandLabels
             case BlockType.MoveRight: return new Color(1.00f, 0.32f, 0.53f); // Neon Coral
             case BlockType.Stop:      return new Color(1.00f, 0.63f, 0.16f); // Loopback Amber
             case BlockType.Force:     return new Color(0.38f, 0.95f, 0.45f);
-            case BlockType.Wait:      return new Color(0.65f, 0.80f, 1.00f);
+            case BlockType.Wait:      return new Color(0.18f, 1.00f, 0.82f); // EMP Aqua-Mint
             default:                  return Color.cyan;
         }
     }

@@ -62,6 +62,7 @@ public class CodeExecutor : MonoBehaviour
         restartAfterRespawn = false;
         isRunning = true;
         currentPass = 1;
+        TileManager.Instance?.ResetDynamicEnvironment();
         runCoroutine = StartCoroutine(ExecuteLoop(body));
     }
 
@@ -91,6 +92,11 @@ public class CodeExecutor : MonoBehaviour
 
             if (!isRunning || player == null || LevelComplete()) break;
 
+            if (!restartAfterRespawn)
+            {
+                TileManager.Instance?.CompleteBeat(player);
+            }
+
             if (restartAfterRespawn)
             {
                 OnStatusMessage?.Invoke("HAZARD HIT — RESPAWNING AT START...");
@@ -98,6 +104,7 @@ public class CodeExecutor : MonoBehaviour
                     yield return null;
                 if (!isRunning || player == null || LevelComplete()) break;
 
+                TileManager.Instance?.ResetDynamicEnvironment();
                 restartAfterRespawn = false;
                 cursor.RestartIteration();
                 currentPass = 1;

@@ -27,8 +27,57 @@ public static class CommandPanelRepair
     [MenuItem("Tools/Joysticks/Preview Level 3 (Wall Clamp - Obstacle Asymmetry)")]
     public static void PreviewL3() => SetupActiveSceneForLevel(2);
 
-    [MenuItem("Tools/Joysticks/Preview Level 4 (Phase Weave - Grand Finale)")]
+    [MenuItem("Tools/Joysticks/Preview Level 4 (Phase Weave - Act I Finale)")]
     public static void PreviewL4() => SetupActiveSceneForLevel(3);
+
+    [MenuItem("Tools/Joysticks/Preview Level 5 (Phase Pulse - EMP + Dynamic Gates)")]
+    public static void PreviewL5() => SetupActiveSceneForLevel(4);
+
+    [MenuItem("Tools/Joysticks/Preview Level 6 (Dynamic Clamp - Gate Asymmetry)")]
+    public static void PreviewL6() => SetupActiveSceneForLevel(5);
+
+    [MenuItem("Tools/Joysticks/Preview Level 7 (Chrono Overdrive - Grand Finale)")]
+    public static void PreviewL7() => SetupActiveSceneForLevel(6);
+
+    [MenuItem("Tools/Joysticks/Test Wire Level 7 Solution Only (Play Mode)")]
+    public static void TestWireL7Only() => TestWireAndRun(6, new[] { BlockType.Lava, BlockType.MoveLeft, BlockType.Wait, BlockType.Walk, BlockType.MoveRight }, false);
+
+    [MenuItem("Tools/Joysticks/Test Run Level 5 Solution (Play Mode)")]
+    public static void TestRunL5() => TestWireAndRun(4, new[] { BlockType.Wait, BlockType.Lava, BlockType.Walk }, true);
+
+    [MenuItem("Tools/Joysticks/Test Run Level 6 Solution (Play Mode)")]
+    public static void TestRunL6() => TestWireAndRun(5, new[] { BlockType.Walk, BlockType.MoveLeft, BlockType.Lava, BlockType.Wait }, true);
+
+    [MenuItem("Tools/Joysticks/Test Run Level 7 Solution (Play Mode)")]
+    public static void TestRunL7() => TestWireAndRun(6, new[] { BlockType.Lava, BlockType.MoveLeft, BlockType.Wait, BlockType.Walk, BlockType.MoveRight }, true);
+
+    private static void TestWireAndRun(int levelIdx, BlockType[] order, bool runImmediately)
+    {
+        if (LevelManager.Instance == null || UIManager.Instance == null) return;
+        LevelManager.Instance.LoadCampaignLevel(levelIdx, true);
+        var ui = UIManager.Instance;
+        NodeCardUI prev = ui.startNodeCard;
+        foreach (var bt in order)
+        {
+            foreach (var pc in ui.paletteCards)
+            {
+                if (pc != null && pc.gameObject.activeSelf && pc.blockType == bt)
+                {
+                    ui.QuickPlaceFromPalette(pc);
+                    break;
+                }
+            }
+            NodeCardUI placed = ui.graphNodes[ui.graphNodes.Count - 1];
+            prev.connectedNext = placed;
+            placed.connectedPrev = prev;
+            prev = placed;
+        }
+        prev.connectedNext = ui.endNodeCard;
+        ui.endNodeCard.connectedPrev = prev;
+        ui.RefreshWires();
+        if (runImmediately)
+            ui.CollectBlocksAndRun();
+    }
 
     public static void SetupActiveSceneForLevel(int levelIndex)
     {
@@ -128,9 +177,14 @@ public static class CommandPanelRepair
         IsometricBoardBuilder.StyleRobot(player, levelManager.customRobotVisualPrefab);
         player.PlaceOnStartTile();
 
+        if (levelManager.customBackdropTexture == null)
+        {
+            levelManager.customBackdropTexture = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Textures/UI/FactoryBackdrop.png");
+        }
+
         if (Camera.main != null)
         {
-            IsometricBoardBuilder.FrameCameraForLevel(Camera.main, targetLevel, levelManager.cellSpacing);
+            IsometricBoardBuilder.FrameCameraForLevel(Camera.main, targetLevel, levelManager.cellSpacing, levelManager.customBackdropTexture);
         }
 
         uiManager.EnsureSplitScreenNodeLabUI();

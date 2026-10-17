@@ -92,6 +92,18 @@ public static class IsometricBoardBuilder
                 case TileType.Obstacle:
                     tileComp = tileObj.AddComponent<ObstacleTile>();
                     break;
+                case TileType.PhaseSpikeUp:
+                case TileType.PhaseSpikeDown:
+                    var spikeTile = tileObj.AddComponent<PhaseSpikeTile>();
+                    spikeTile.startsExtended = (cell.type == TileType.PhaseSpikeUp);
+                    tileComp = spikeTile;
+                    break;
+                case TileType.PhaseGateClosed:
+                case TileType.PhaseGateOpen:
+                    var gateTile = tileObj.AddComponent<PhaseGateTile>();
+                    gateTile.startsClosed = (cell.type == TileType.PhaseGateClosed);
+                    tileComp = gateTile;
+                    break;
                 default:
                     tileComp = tileObj.AddComponent<FreeTile>();
                     break;
@@ -99,14 +111,14 @@ public static class IsometricBoardBuilder
 
             tileComp.gridPosition = cell.coord;
             tileComp.tileType = cell.type;
-            tileComp.hasObstacle = cell.hasObstacle || cell.type == TileType.Obstacle;
+            tileComp.hasObstacle = cell.hasObstacle || cell.type == TileType.Obstacle || cell.type == TileType.PhaseGateClosed;
 
             // Optional custom prefab override
             GameObject prefabOverride = null;
             if (cell.type == TileType.Start) prefabOverride = customStartPrefab;
             else if (cell.type == TileType.Free && !tileComp.hasObstacle) prefabOverride = customFreePrefab;
             else if (cell.type == TileType.Lava) prefabOverride = customLavaPrefab;
-            else if (cell.type == TileType.Obstacle || tileComp.hasObstacle) prefabOverride = customObstaclePrefab;
+            else if (cell.type == TileType.Obstacle) prefabOverride = customObstaclePrefab;
             else if (cell.type == TileType.End) prefabOverride = customEndPrefab;
 
             if (prefabOverride != null)
@@ -144,6 +156,109 @@ public static class IsometricBoardBuilder
                     }
                 }
             }
+            else if (cell.type == TileType.PhaseSpikeUp || cell.type == TileType.PhaseSpikeDown)
+            {
+                var phaseSpike = tileComp as PhaseSpikeTile;
+                Material rimInitMat = GetOrCreateMaterial("PhaseSpikeRimInit", new Color(1.00f, 0.20f, 0.28f), true, 0.7f);
+                Material pistonMat = GetOrCreateMaterial("PhaseSpikePiston", new Color(1.00f, 0.25f, 0.32f), true, 0.6f);
+
+                // Recessed dark mechanical grate housing
+                CreateBox(tileObj.transform, "RecessWell", new Vector3(0f, 0.055f, 0f), new Vector3(1.36f, 0.04f, 1.36f), strutDark);
+                for (int g = -1; g <= 1; g++)
+                {
+                    CreateBox(tileObj.transform, $"GrateBar_{g}", new Vector3(g * 0.44f, 0.07f, 0f), new Vector3(0.10f, 0.03f, 1.32f), darkChassis);
+                }
+
+                // 4 Neon status rim bars around the housing
+                var r1 = CreateBox(tileObj.transform, "StatusRimN", new Vector3(0f, 0.08f, 0.72f), new Vector3(1.52f, 0.05f, 0.08f), rimInitMat).GetComponent<Renderer>();
+                var r2 = CreateBox(tileObj.transform, "StatusRimS", new Vector3(0f, 0.08f, -0.72f), new Vector3(1.52f, 0.05f, 0.08f), rimInitMat).GetComponent<Renderer>();
+                var r3 = CreateBox(tileObj.transform, "StatusRimE", new Vector3(0.72f, 0.08f, 0f), new Vector3(0.08f, 0.05f, 1.38f), rimInitMat).GetComponent<Renderer>();
+                var r4 = CreateBox(tileObj.transform, "StatusRimW", new Vector3(-0.72f, 0.08f, 0f), new Vector3(0.08f, 0.05f, 1.38f), rimInitMat).GetComponent<Renderer>();
+
+                // Central rotating plasma turbine rotor
+                GameObject coreRoot = new GameObject("RotatingTurbineCore");
+                coreRoot.transform.SetParent(tileObj.transform, false);
+                coreRoot.transform.localPosition = new Vector3(0f, 0.075f, 0f);
+                var bladeA = CreateBox(coreRoot.transform, "RotorBladeA", Vector3.zero, new Vector3(0.76f, 0.03f, 0.14f), rimInitMat).GetComponent<Renderer>();
+                var bladeB = CreateBox(coreRoot.transform, "RotorBladeB", Vector3.zero, new Vector3(0.14f, 0.03f, 0.76f), rimInitMat).GetComponent<Renderer>();
+
+                // Movable Hydraulic Spike Rack
+                GameObject rackRoot = new GameObject("HydraulicSpikeRack");
+                rackRoot.transform.SetParent(tileObj.transform, false);
+                rackRoot.transform.localPosition = new Vector3(0f, 0.22f, 0f);
+                for (int sx = -1; sx <= 1; sx++)
+                {
+                    for (int sz = -1; sz <= 1; sz++)
+                    {
+                        var spike = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                        spike.name = $"PhasePiston_{sx}_{sz}";
+                        spike.transform.SetParent(rackRoot.transform, false);
+                        spike.transform.localPosition = new Vector3(sx * 0.42f, 0f, sz * 0.42f);
+                        spike.transform.localScale = new Vector3(0.24f, 0.22f, 0.24f);
+                        spike.GetComponent<Renderer>().sharedMaterial = pistonMat;
+                        Object.DestroyImmediate(spike.GetComponent<Collider>());
+
+                        var tip = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                        tip.name = $"PistonTip_{sx}_{sz}";
+                        tip.transform.SetParent(rackRoot.transform, false);
+                        tip.transform.localPosition = new Vector3(sx * 0.42f, 0.20f, sz * 0.42f);
+                        tip.transform.localScale = new Vector3(0.24f, 0.24f, 0.24f);
+                        tip.GetComponent<Renderer>().sharedMaterial = rimInitMat;
+                        Object.DestroyImmediate(tip.GetComponent<Collider>());
+                    }
+                }
+
+                if (phaseSpike != null)
+                {
+                    phaseSpike.spikeRackTransform = rackRoot.transform;
+                    phaseSpike.rotatingCoreTransform = coreRoot.transform;
+                    phaseSpike.statusRimRenderers = new List<Renderer> { r1, r2, r3, r4, bladeA, bladeB };
+                    phaseSpike.SyncVisualImmediate();
+                }
+            }
+            else if (cell.type == TileType.PhaseGateClosed || cell.type == TileType.PhaseGateOpen)
+            {
+                var phaseGate = tileComp as PhaseGateTile;
+                Material laserBeamMat = GetOrCreateMaterial("PhaseLaserBeam", new Color(1.00f, 0.16f, 0.34f), true, 0.85f);
+                Material laserCoreMat = GetOrCreateMaterial("PhaseLaserCore", new Color(1.00f, 0.45f, 0.62f), true, 0.90f);
+
+                // Floor emitter emitter strip
+                CreateBox(tileObj.transform, "GateFloorTrack", new Vector3(0f, 0.065f, 0f), new Vector3(0.32f, 0.04f, 1.56f), strutDark);
+
+                // Left & Right Industrial Laser Pylons
+                CreateBox(tileObj.transform, "PylonBaseL", new Vector3(0f, 0.16f, 0.68f), new Vector3(0.42f, 0.22f, 0.32f), obstacleSteel);
+                CreateBox(tileObj.transform, "PylonTowerL", new Vector3(0f, 0.62f, 0.68f), new Vector3(0.26f, 0.96f, 0.22f), darkChassis);
+                CreateBox(tileObj.transform, "PylonBaseR", new Vector3(0f, 0.16f, -0.68f), new Vector3(0.42f, 0.22f, 0.32f), obstacleSteel);
+                CreateBox(tileObj.transform, "PylonTowerR", new Vector3(0f, 0.62f, -0.68f), new Vector3(0.26f, 0.96f, 0.22f), darkChassis);
+
+                // Beacon status strips on towers
+                var bL = CreateBox(tileObj.transform, "PylonBeaconL", new Vector3(0f, 0.64f, 0.68f), new Vector3(0.30f, 0.72f, 0.08f), laserBeamMat).GetComponent<Renderer>();
+                var bR = CreateBox(tileObj.transform, "PylonBeaconR", new Vector3(0f, 0.64f, -0.68f), new Vector3(0.30f, 0.72f, 0.08f), laserBeamMat).GetComponent<Renderer>();
+
+                // Rotating top emitter orbs
+                var orbL = CreateBox(tileObj.transform, "LeftEmitterOrb", new Vector3(0f, 1.22f, 0.68f), new Vector3(0.28f, 0.28f, 0.28f), laserCoreMat);
+                orbL.transform.localRotation = Quaternion.Euler(45f, 45f, 0f);
+                var orbR = CreateBox(tileObj.transform, "RightEmitterOrb", new Vector3(0f, 1.22f, -0.68f), new Vector3(0.28f, 0.28f, 0.28f), laserCoreMat);
+                orbR.transform.localRotation = Quaternion.Euler(45f, 45f, 0f);
+
+                // Horizontal Laser Wall Beams
+                GameObject beamsRoot = new GameObject("LaserWallBeams");
+                beamsRoot.transform.SetParent(tileObj.transform, false);
+                beamsRoot.transform.localPosition = Vector3.zero;
+                CreateBox(beamsRoot.transform, "LaserBarBottom", new Vector3(0f, 0.32f, 0f), new Vector3(0.12f, 0.08f, 1.28f), laserBeamMat);
+                CreateBox(beamsRoot.transform, "LaserBarMiddle", new Vector3(0f, 0.62f, 0f), new Vector3(0.14f, 0.09f, 1.28f), laserCoreMat);
+                CreateBox(beamsRoot.transform, "LaserBarTop", new Vector3(0f, 0.92f, 0f), new Vector3(0.12f, 0.08f, 1.28f), laserBeamMat);
+
+                tileComp.obstacleVisual = beamsRoot;
+                if (phaseGate != null)
+                {
+                    phaseGate.laserBeamsRoot = beamsRoot.transform;
+                    phaseGate.leftOrbTransform = orbL.transform;
+                    phaseGate.rightOrbTransform = orbR.transform;
+                    phaseGate.beaconRenderers = new List<Renderer> { bL, bR, orbL.GetComponent<Renderer>(), orbR.GetComponent<Renderer>() };
+                    phaseGate.SyncVisualImmediate();
+                }
+            }
             else if (cell.type == TileType.End)
             {
                 // Glowing goal pad + industrial doorway frame + top gear (matching screenshot!)
@@ -164,7 +279,7 @@ public static class IsometricBoardBuilder
                 Object.DestroyImmediate(gear.GetComponent<Collider>());
             }
 
-            if (tileComp.hasObstacle)
+            if (tileComp.hasObstacle && cell.type != TileType.PhaseGateClosed && cell.type != TileType.PhaseGateOpen)
             {
                 GameObject obsRoot = new GameObject("ObstacleBarrier");
                 obsRoot.transform.SetParent(tileObj.transform, false);
@@ -223,7 +338,7 @@ public static class IsometricBoardBuilder
         CreateBox(visRoot.transform, "FrontRightEye", new Vector3(0.35f, 0.74f, -0.14f), new Vector3(0.06f, 0.24f, 0.10f), eyeMat);
     }
 
-    public static void FrameCameraForLevel(Camera cam, LevelDefinition level, float cellSpacing)
+    public static void FrameCameraForLevel(Camera cam, LevelDefinition level, float cellSpacing, Texture2D customBackdropTex = null)
     {
         if (cam == null || level == null || level.cells.Count == 0) return;
 
@@ -255,10 +370,10 @@ public static class IsometricBoardBuilder
         cam.transform.rotation = isoRot;
         cam.transform.position = center - (isoRot * Vector3.forward) * 18f;
 
-        EnsureFactoryBackdrop(cam, center, isoRot);
+        EnsureFactoryBackdrop(cam, center, isoRot, customBackdropTex);
     }
 
-    private static void EnsureFactoryBackdrop(Camera cam, Vector3 boardCenter, Quaternion camRot)
+    private static void EnsureFactoryBackdrop(Camera cam, Vector3 boardCenter, Quaternion camRot, Texture2D customBackdropTex = null)
     {
         Transform existing = cam.transform.Find("FactoryBackdropQuad");
         if (existing == null)
@@ -276,7 +391,17 @@ public static class IsometricBoardBuilder
         existing.localRotation = Quaternion.identity;
         existing.localScale = new Vector3(w, h, 1f);
 
-        Texture2D tex = Resources.Load<Texture2D>("LoopLab/FactoryBackdrop");
+        Renderer rend = existing.GetComponent<Renderer>();
+
+        // If user dropped a custom material/texture directly on FactoryBackdropQuad in the Inspector, keep it!
+        if (customBackdropTex == null && rend != null && rend.sharedMaterial != null && rend.sharedMaterial.mainTexture != null && rend.sharedMaterial.name != "Mat_FactoryBackdrop")
+        {
+            return;
+        }
+
+        Texture2D tex = customBackdropTex;
+        if (tex == null)
+            tex = Resources.Load<Texture2D>("LoopLab/FactoryBackdrop");
 #if UNITY_EDITOR
         if (tex == null)
             tex = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Textures/UI/FactoryBackdrop.png");
@@ -295,7 +420,7 @@ public static class IsometricBoardBuilder
         {
             mat.color = new Color(0.25f, 0.06f, 0.08f);
         }
-        existing.GetComponent<Renderer>().sharedMaterial = mat;
+        rend.sharedMaterial = mat;
     }
 
     private static GameObject CreateBox(Transform parent, string name, Vector3 localPos, Vector3 localScale, Material mat)

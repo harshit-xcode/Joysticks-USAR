@@ -50,6 +50,7 @@ public class PlayerController : MonoBehaviour
         transform.rotation = Quaternion.Euler(0f, 90f, 0f);
         currentState = PlayerState.Idle;
         isCrossingLava = false;
+        TileManager.Instance.ResetDynamicEnvironment();
     }
 
     public void StopAtCurrentTile()
@@ -117,21 +118,32 @@ public class PlayerController : MonoBehaviour
         yield return JumpOverLavaCoroutine();
     }
 
-    // WAIT node: holds position for 1 beat with a subtle pulse.
+    // PULSE node (BlockType.Wait): holds position for 1 beat, emits a 3D EMP shockwave, and flips all Laser Phase Gates!
     public IEnumerator WaitStepCoroutine()
     {
-        if (currentTile == null) yield break;
+        if (currentTile == null)
+        {
+            PlaceOnStartTile();
+            if (currentTile == null) yield break;
+        }
+
+        AudioManager.Instance?.PlayNodeConnect();
+        TileManager.Instance?.TriggerEmpPulse(transform.position);
+
         Vector3 basePos = GetStandingPosition(currentTile);
+        Quaternion baseRot = Quaternion.Euler(0f, 90f, 0f);
         float duration = 1f / Mathf.Max(0.5f, moveSpeed);
         float elapsed = 0f;
         while (elapsed < duration)
         {
             elapsed += Time.deltaTime;
             float t = Mathf.Clamp01(elapsed / duration);
-            transform.position = basePos + Vector3.up * (Mathf.Sin(t * Mathf.PI) * 0.08f);
+            transform.position = basePos + Vector3.up * (Mathf.Sin(t * Mathf.PI) * 0.24f);
+            transform.rotation = baseRot * Quaternion.Euler(0f, t * 360f, 0f);
             yield return null;
         }
         transform.position = basePos;
+        transform.rotation = baseRot;
         yield return new WaitForSeconds(stepDelay);
     }
 

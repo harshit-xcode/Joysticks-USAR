@@ -290,17 +290,17 @@ public class UIManager : MonoBehaviour
             TextAlignmentOptions.BottomLeft);
         objectiveHintLabel.rectTransform.offsetMax = new Vector2(0f, -34f);
 
-        // Top-Right Level Selector Bar (P1..P4 + Mute)
+        // Top-Right Level Selector Bar (P1..P7 + Mute)
         GameObject rightBar = CreateUiObject("TopRightControls", topHudPanel);
         var rbRect = rightBar.GetComponent<RectTransform>();
         rbRect.anchorMin = new Vector2(1f, 1f);
         rbRect.anchorMax = new Vector2(1f, 1f);
         rbRect.pivot = new Vector2(1f, 1f);
         rbRect.anchoredPosition = new Vector2(-20f, -14f);
-        rbRect.sizeDelta = new Vector2(332f, 40f);
+        rbRect.sizeDelta = new Vector2(456f, 40f);
 
         levelPillImages.Clear();
-        for (int i = 0; i < 4; i++)
+        for (int i = 0; i < 7; i++)
         {
             int levelIdx = i;
             GameObject pill = CreateUiObject($"LevelBtn_{i + 1}", rbRect, true, true);
@@ -308,14 +308,14 @@ public class UIManager : MonoBehaviour
             pr.anchorMin = new Vector2(0f, 0f);
             pr.anchorMax = new Vector2(0f, 1f);
             pr.pivot = new Vector2(0f, 0.5f);
-            pr.anchoredPosition = new Vector2(i * 48f, 0f);
-            pr.sizeDelta = new Vector2(42f, -4f);
+            pr.anchoredPosition = new Vector2(i * 46f, 0f);
+            pr.sizeDelta = new Vector2(40f, -4f);
 
             var img = pill.GetComponent<Image>();
             img.color = i == 0 ? new Color(0.00f, 0.72f, 0.92f, 0.96f) : new Color(0.10f, 0.14f, 0.22f, 0.90f);
             levelPillImages.Add(img);
 
-            CreateStyledText(pr, "Lbl", $"P{i + 1}", 14.5f, Color.white, TextAlignmentOptions.Center);
+            CreateStyledText(pr, "Lbl", $"P{i + 1}", 14f, Color.white, TextAlignmentOptions.Center);
             var btn = pill.GetComponent<Button>();
             btn.targetGraphic = img;
             btn.onClick.AddListener(() =>
@@ -637,10 +637,10 @@ public class UIManager : MonoBehaviour
         victoryOverlay.SetActive(false);
     }
 
-    // Configures the UI for a specific LevelDefinition (Level 1..5)
+    // Configures the UI for a specific LevelDefinition (Level 1..7)
     public void ConfigureForLevel(LevelDefinition level, int levelIdx, int totalLevels)
     {
-        if (rootUiRect == null) EnsureSplitScreenNodeLabUI();
+        if (rootUiRect == null || levelPillImages.Count != 7) EnsureSplitScreenNodeLabUI();
         HideVictoryBanner();
 
         if (levelTitleLabel != null)
@@ -685,11 +685,11 @@ public class UIManager : MonoBehaviour
                 {
                     NodeCardUI card = CreateNodeCardObject(item.nodeType, paletteContainer, true, false);
                     card.paletteSlotIndex = slotIndex;
-                    PositionPaletteCard(card.rectTransform, slotIndex);
                     paletteCards.Add(card);
                     slotIndex++;
                 }
             }
+            ReflowPaletteCards();
         }
 
         commands.Clear();
@@ -698,27 +698,46 @@ public class UIManager : MonoBehaviour
         SetStatusBanner("CIRCUIT OPEN — DRAG MODULES TO BOARD & DRAG PORTS TO WIRE [START] -> [LOOP]");
     }
 
-    private void PositionPaletteCard(RectTransform rt, int index)
+    private void PositionPaletteCard(RectTransform rt, int index, int totalVisible = 4)
     {
         int col = index % 2;
         int row = index / 2;
         rt.anchorMin = new Vector2(0.5f, 1f);
         rt.anchorMax = new Vector2(0.5f, 1f);
         rt.pivot = new Vector2(0.5f, 1f);
-        float x = (col == 0) ? -68f : 68f;
-        float y = -14f - row * 122f;
-        rt.anchoredPosition = new Vector2(x, y);
         rt.sizeDelta = new Vector2(110f, 110f);
+
+        if (totalVisible > 4)
+        {
+            rt.localScale = new Vector3(0.84f, 0.84f, 1f);
+            float x = (col == 0) ? -64f : 64f;
+            float y = -6f - row * 100f;
+            rt.anchoredPosition = new Vector2(x, y);
+        }
+        else
+        {
+            rt.localScale = Vector3.one;
+            float x = (col == 0) ? -68f : 68f;
+            float y = -14f - row * 122f;
+            rt.anchoredPosition = new Vector2(x, y);
+        }
     }
 
     private void ReflowPaletteCards()
     {
+        int totalVisible = 0;
+        foreach (var pc in paletteCards)
+        {
+            if (pc != null && pc.gameObject.activeSelf)
+                totalVisible++;
+        }
+
         int visibleIdx = 0;
         foreach (var pc in paletteCards)
         {
             if (pc != null && pc.gameObject.activeSelf)
             {
-                PositionPaletteCard(pc.rectTransform, visibleIdx);
+                PositionPaletteCard(pc.rectTransform, visibleIdx, totalVisible);
                 visibleIdx++;
             }
         }
@@ -887,7 +906,8 @@ public class UIManager : MonoBehaviour
         if (!IsEditingAllowed || paletteCard == null || nodesLayer == null) return;
 
         int idx = graphNodes.Count;
-        float x = -220f + idx * 175f;
+        bool fivePlus = paletteCards != null && paletteCards.Count > 4;
+        float x = fivePlus ? (-280f + idx * 140f) : (-220f + idx * 160f);
         float y = (idx % 2 == 0) ? 28f : -48f;
         Vector2 pos = SnapToGrid(new Vector2(Mathf.Clamp(x, -310f, 310f), y));
 
@@ -1570,7 +1590,7 @@ public class UIManager : MonoBehaviour
         {
             victorySubText.text = hasNextLevel
                 ? $"LOOP VERIFIED IN {commands.Count} NODE(S) — NEXT NODE MODIFIER UNLOCKED!"
-                : "ALL 4 CHRONO-LOOP PROTOCOLS COMPLETED! CONGRATULATIONS!";
+                : "ALL 7 CHRONO-LOOP PROTOCOLS COMPLETED! CONGRATULATIONS!";
         }
     }
 

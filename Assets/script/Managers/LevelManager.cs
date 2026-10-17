@@ -20,7 +20,8 @@ public class LevelManager : MonoBehaviour
     [Min(0)] public int currentLevelIndex = 0;
     public List<LevelDefinition> campaignLevels = new List<LevelDefinition>();
 
-    [Header("Optional Custom 3D Prefab Overrides (Drop Custom Assets Here)")]
+    [Header("Optional Custom 3D Prefab & Backdrop Overrides (Drop Custom Assets Here)")]
+    public Texture2D customBackdropTexture;
     public GameObject customStartTilePrefab;
     public GameObject customFreeTilePrefab;
     public GameObject customLavaTilePrefab;
@@ -54,7 +55,7 @@ public class LevelManager : MonoBehaviour
 
     public void EnsureCampaignInitialized()
     {
-        if (campaignLevels == null || campaignLevels.Count != 4 || campaignLevels[3].title != "PROTOCOL 04 // PHASE WEAVE")
+        if (campaignLevels == null || campaignLevels.Count != 7 || campaignLevels[6].title != "PROTOCOL 07 // CHRONO OVERDRIVE")
         {
             campaignLevels = LevelCampaignCatalog.CreateCampaignLevels();
         }
@@ -112,7 +113,7 @@ public class LevelManager : MonoBehaviour
 
         if (Camera.main != null)
         {
-            IsometricBoardBuilder.FrameCameraForLevel(Camera.main, level, cellSpacing);
+            IsometricBoardBuilder.FrameCameraForLevel(Camera.main, level, cellSpacing, customBackdropTexture);
         }
 
         if (player != null)
