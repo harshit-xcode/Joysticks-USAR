@@ -88,7 +88,7 @@ public class CodeExecutor : MonoBehaviour
         restartAfterRespawn = false;
         if (runCoroutine != null) StopCoroutine(runCoroutine);
         runCoroutine = null;
-        if (player != null) player.isCrossingLava = false;
+        if (player != null) player.StopAtCurrentTile();
     }
 
     void OnDisable() { StopExecution(); }

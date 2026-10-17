@@ -43,6 +43,15 @@ public class PlayerController : MonoBehaviour
         Debug.Log("Player placed on Start tile.");
     }
 
+    // Cancel an interrupted animation at the last fully reached tile.
+    public void StopAtCurrentTile()
+    {
+        if (currentTile != null) transform.position = currentTile.transform.position;
+        isCrossingLava = false;
+        if (currentState != PlayerState.Win && currentState != PlayerState.Dead)
+            currentState = PlayerState.Idle;
+    }
+
     // Returns the tile the player is currently on.
     public Tile GetCurrentTile()
     {

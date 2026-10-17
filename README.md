@@ -7,7 +7,7 @@ Unity **6000.0.81f1**. A 3D tile-based robot programming game built around repea
 1. Clone this repository, or download its ZIP and extract it.
 2. Unity Hub → **Add project from disk** → select the repository root containing `Assets`, `Packages`, and `ProjectSettings`.
 3. Use Unity **6000.0.81f1**. Allow packages and TextMesh Pro assets to import.
-4. Open the custom level scene in `Assets/Scenes` and press Play.
+4. Open `Assets/GameJamLevel .unity` and press Play. (The scene filename currently includes a space before `.unity`.)
 
 `Assets/Loops/Scenes/LoopsDemo.unity` is the earlier standalone prototype. The current custom game uses the components in `Assets/script`.
 
@@ -18,6 +18,7 @@ Unity **6000.0.81f1**. A 3D tile-based robot programming game built around repea
 - Click a row's **×**, or right-click it, to remove that command.
 - **Run** repeats the chosen commands until the robot reaches the End tile.
 - A lava mistake respawns the robot and automatically retries the program.
+- **Stop** cancels the current loop on the last completed tile and keeps your commands. Run starts the command list again from that tile.
 - **Reset** stops execution, cancels pending respawns, clears the victory state, and returns the robot to Start while keeping the commands.
 
 The Jump command retains its legacy internal name `Lava` to preserve existing scene and prefab references. Do not change serialized enum values or remove script `.meta` files.

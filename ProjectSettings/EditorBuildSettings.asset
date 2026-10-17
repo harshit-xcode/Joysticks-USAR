@@ -6,6 +6,6 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
-    path: Assets/Loops/Scenes/LoopsDemo.unity
-    guid: 2cac06a78a214d1fa90e15fddc359fe9
+    path: Assets/GameJamLevel .unity
+    guid: c19662f2d6b074718a957cd126cdd185
   m_configObjects: {}

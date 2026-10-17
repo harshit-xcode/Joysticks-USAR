@@ -62,13 +62,14 @@ public class UIManager : MonoBehaviour
             var rect = run.transform as RectTransform;
             if (rect == null) continue;
             rect.anchorMin = Vector2.zero;
-            rect.anchorMax = new Vector2(.5f, 0);
+            rect.anchorMax = new Vector2(1f / 3f, 0);
             rect.pivot = new Vector2(.5f, 0);
             rect.anchoredPosition = new Vector2(0, 20);
-            rect.sizeDelta = new Vector2(-20, 50);
+            rect.sizeDelta = new Vector2(-16, 50);
             rect.localScale = Vector3.one;
         }
         ConfigureResetButton();
+        ConfigureStopButton();
         var canvas = programPanel.GetComponentInParent<Canvas>();
         if (canvas != null)
         {
@@ -102,11 +103,11 @@ public class UIManager : MonoBehaviour
         }
         else obj = existing.gameObject;
         var rect = obj.GetComponent<RectTransform>();
-        rect.anchorMin = new Vector2(.5f, 0);
+        rect.anchorMin = new Vector2(2f / 3f, 0);
         rect.anchorMax = new Vector2(1, 0);
         rect.pivot = new Vector2(.5f, 0);
         rect.anchoredPosition = new Vector2(0, 20);
-        rect.sizeDelta = new Vector2(-20, 50);
+        rect.sizeDelta = new Vector2(-16, 50);
         rect.localScale = Vector3.one;
         var image = obj.GetComponent<Image>();
         image.color = new Color(.25f, .35f, .5f);
@@ -114,6 +115,43 @@ public class UIManager : MonoBehaviour
         button.targetGraphic = image;
         button.onClick.RemoveListener(ResetProgram);
         button.onClick.AddListener(ResetProgram);
+    }
+
+    void ConfigureStopButton()
+    {
+        var existing = programPanel.Find("Stop Button");
+        GameObject obj;
+        if (existing == null)
+        {
+            obj = new GameObject("Stop Button", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
+            obj.transform.SetParent(programPanel, false);
+            CreateLabel(obj.transform, "STOP");
+        }
+        else obj = existing.gameObject;
+        var rect = obj.GetComponent<RectTransform>();
+        rect.anchorMin = new Vector2(1f / 3f, 0);
+        rect.anchorMax = new Vector2(2f / 3f, 0);
+        rect.pivot = new Vector2(.5f, 0);
+        rect.anchoredPosition = new Vector2(0, 20);
+        rect.sizeDelta = new Vector2(-16, 50);
+        rect.localScale = Vector3.one;
+        var image = obj.GetComponent<Image>();
+        image.color = new Color(.7f, .2f, .2f);
+        var button = obj.GetComponent<Button>();
+        button.targetGraphic = image;
+        button.onClick.RemoveListener(StopProgram);
+        button.onClick.AddListener(StopProgram);
+    }
+
+    public void StopProgram()
+    {
+        if (codeExecutor != null) codeExecutor.StopExecution();
+        var robot = player != null ? player : codeExecutor != null ? codeExecutor.player : null;
+        if (robot == null) return;
+        robot.GetComponent<PlayerRespawn>()?.CancelPendingRespawn();
+        // If the robot was already dead, cancel its pending retry and restore a valid position.
+        if (robot.currentState == PlayerState.Dead) robot.PlaceOnStartTile();
+        else robot.StopAtCurrentTile();
     }
 
     // Reset is available during execution and after victory; the editable program stays intact.
