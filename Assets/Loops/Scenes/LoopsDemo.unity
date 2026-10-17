@@ -1,0 +1,58 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &1000
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1001}
+  - component: {fileID: 1002}
+  m_Layer: 0
+  m_Name: Demo Preview - press Play, or use Loops menu to create editable tiles
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1001
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1000}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1002
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1000}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b0c7095909ba4ab7b3126955c130fbb5, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+  stone: {fileID: 2100000, guid: 1ad151f83e02454ebdc6aff5a4ba62d6, type: 2}
+  lava: {fileID: 2100000, guid: 07bb6dc80b9a4faf894f68309ac2d67f, type: 2}
+  goal: {fileID: 2100000, guid: 5c9314bc5c0348bebe3d6f4465c4be6f, type: 2}
+  wood: {fileID: 2100000, guid: a6f0c365c8364017a3c6f3fc9af40b7c, type: 2}
+  robotMaterial: {fileID: 2100000, guid: b24bbff924af4ef192a654932d192c73, type: 2}
+  face: {fileID: 2100000, guid: 340630c44a6f47e2b1d53bef1da969bb, type: 2}
+  grass: {fileID: 2100000, guid: 0ab5435c9479451b8dfb5f94b5fae496, type: 2}
+--- !u!1660057539 &9223372036854775807
+SceneRoots:
+  m_ObjectHideFlags: 0
+  m_Roots:
+  - {fileID: 1001}
