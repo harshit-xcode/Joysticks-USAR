@@ -60,6 +60,14 @@ public class UIManager : MonoBehaviour
     private TextMeshProUGUI muteBtnLabel;
     private readonly List<Image> levelPillImages = new List<Image>();
 
+    // Camera Tuner HUD references
+    private GameObject cameraTunerPanel;
+    private TextMeshProUGUI camBtnLabel;
+    private TextMeshProUGUI camModeBtnLabel;
+    private TextMeshProUGUI camZoomReadout;
+    private TextMeshProUGUI camFovReadout;
+    private TextMeshProUGUI camAngleReadout;
+
     private RectTransform bottomSplitRoot;
     private RectTransform paletteContainer;
     private RectTransform labGridContainer;
@@ -290,14 +298,14 @@ public class UIManager : MonoBehaviour
             TextAlignmentOptions.BottomLeft);
         objectiveHintLabel.rectTransform.offsetMax = new Vector2(0f, -34f);
 
-        // Top-Right Level Selector Bar (P1..P7 + Mute)
+        // Top-Right Level Selector Bar (P1..P7 + Cam Tuner + Mute)
         GameObject rightBar = CreateUiObject("TopRightControls", topHudPanel);
         var rbRect = rightBar.GetComponent<RectTransform>();
         rbRect.anchorMin = new Vector2(1f, 1f);
         rbRect.anchorMax = new Vector2(1f, 1f);
         rbRect.pivot = new Vector2(1f, 1f);
         rbRect.anchoredPosition = new Vector2(-20f, -14f);
-        rbRect.sizeDelta = new Vector2(456f, 40f);
+        rbRect.sizeDelta = new Vector2(580f, 40f);
 
         levelPillImages.Clear();
         for (int i = 0; i < 7; i++)
@@ -308,8 +316,8 @@ public class UIManager : MonoBehaviour
             pr.anchorMin = new Vector2(0f, 0f);
             pr.anchorMax = new Vector2(0f, 1f);
             pr.pivot = new Vector2(0f, 0.5f);
-            pr.anchoredPosition = new Vector2(i * 46f, 0f);
-            pr.sizeDelta = new Vector2(40f, -4f);
+            pr.anchoredPosition = new Vector2(i * 44f, 0f);
+            pr.sizeDelta = new Vector2(38f, -4f);
 
             var img = pill.GetComponent<Image>();
             img.color = i == 0 ? new Color(0.00f, 0.72f, 0.92f, 0.96f) : new Color(0.10f, 0.14f, 0.22f, 0.90f);
@@ -325,6 +333,27 @@ public class UIManager : MonoBehaviour
             });
         }
 
+        // Camera Lab / Tuner Button
+        GameObject camBtnObj = CreateUiObject("CamTunerButton", rbRect, true, true);
+        var cr = camBtnObj.GetComponent<RectTransform>();
+        cr.anchorMin = new Vector2(1f, 0f);
+        cr.anchorMax = new Vector2(1f, 1f);
+        cr.pivot = new Vector2(1f, 0.5f);
+        cr.anchoredPosition = new Vector2(-118f, 0f);
+        cr.sizeDelta = new Vector2(112f, -4f);
+        var camImg = camBtnObj.GetComponent<Image>();
+        camImg.color = new Color(0.12f, 0.22f, 0.36f, 0.95f);
+        camBtnLabel = CreateStyledText(cr, "CamLbl", "CAM: ISO", 13.5f, new Color(0.35f, 0.92f, 1f), TextAlignmentOptions.Center);
+        var camBtn = camBtnObj.GetComponent<Button>();
+        camBtn.targetGraphic = camImg;
+        camBtn.onClick.AddListener(() =>
+        {
+            if (GameCameraController.Instance != null)
+            {
+                GameCameraController.Instance.ToggleTunerPanel();
+            }
+        });
+
         // Mute / Audio Button
         GameObject muteBtnObj = CreateUiObject("MuteButton", rbRect, true, true);
         var mr = muteBtnObj.GetComponent<RectTransform>();
@@ -332,7 +361,7 @@ public class UIManager : MonoBehaviour
         mr.anchorMax = new Vector2(1f, 1f);
         mr.pivot = new Vector2(1f, 0.5f);
         mr.anchoredPosition = Vector2.zero;
-        mr.sizeDelta = new Vector2(118f, -4f);
+        mr.sizeDelta = new Vector2(112f, -4f);
         var muteImg = muteBtnObj.GetComponent<Image>();
         muteImg.color = new Color(0.10f, 0.14f, 0.22f, 0.92f);
         muteBtnLabel = CreateStyledText(mr, "MuteLbl", "AUDIO: ON", 13.5f, new Color(0.55f, 0.92f, 1f), TextAlignmentOptions.Center);
@@ -346,6 +375,8 @@ public class UIManager : MonoBehaviour
                 muteBtnLabel.text = AudioManager.Instance.isMuted ? "AUDIO: OFF" : "AUDIO: ON";
             }
         });
+
+        BuildCameraTunerModal(topHudPanel);
     }
 
     private void BuildBottomNodeEditor(RectTransform parent)
@@ -486,12 +517,20 @@ public class UIManager : MonoBehaviour
         nodesLayer = nodesLayerObj.GetComponent<RectTransform>();
         StretchFull(nodesLayer);
 
-        // Create Fixed START Emitter (Left) and Fixed LOOP Terminal (Right)
+        // Create START Emitter (Left) and LOOP Terminal (Right).
+        // Both endpoints are draggable like any module, but can never be removed from the board.
         startNodeCard = CreateNodeCardObject(BlockType.Start, nodesLayer, false, true);
-        startNodeCard.rectTransform.anchoredPosition = new Vector2(-460f, -20f);
-
         endNodeCard = CreateNodeCardObject(BlockType.Stop, nodesLayer, false, true);
-        endNodeCard.rectTransform.anchoredPosition = new Vector2(470f, -20f);
+        ResetEndpointPositions();
+    }
+
+    private static readonly Vector2 DefaultStartNodePos = new Vector2(-460f, -20f);
+    private static readonly Vector2 DefaultEndNodePos = new Vector2(470f, -20f);
+
+    private void ResetEndpointPositions()
+    {
+        if (startNodeCard != null) startNodeCard.rectTransform.anchoredPosition = DefaultStartNodePos;
+        if (endNodeCard != null) endNodeCard.rectTransform.anchoredPosition = DefaultEndNodePos;
     }
 
     private void BuildCenterDividerControls(RectTransform parent)
@@ -536,9 +575,8 @@ public class UIManager : MonoBehaviour
         centerPlayStateLabel.rectTransform.anchoredPosition = new Vector2(0f, -2f);
         centerPlayStateLabel.rectTransform.sizeDelta = new Vector2(110f, 18f);
 
-        // Reset Robot button on the left of Play
-        CreateDividerUtilityButton(parent, "ResetRobotBtn", new Vector2(-92f, 0f), new Vector2(102f, 34f),
-            "RESET", new Color(0.12f, 0.18f, 0.28f, 0.96f), ResetProgram);
+        // No separate RESET button: the Play button itself toggles RUN <-> STOP (stopping always
+        // sends the robot back to START), so a half-finished run can never be resumed after editing.
 
         // Clear Board button on the right of Play (no Auto-Wire button so player wires manually!)
         CreateDividerUtilityButton(parent, "ClearGraphBtn", new Vector2(92f, 0f), new Vector2(102f, 34f),
@@ -673,8 +711,9 @@ public class UIManager : MonoBehaviour
 
         if (startNodeCard != null) startNodeCard.connectedNext = null;
         if (endNodeCard != null) endNodeCard.connectedPrev = null;
+        ResetEndpointPositions();
 
-        // Populate COMMAND MODULES palette in a 2-column grid
+        // Populate COMMAND MODULES palette (2-column grid, 3-column compact grid for big loadouts)
         if (level != null && paletteContainer != null)
         {
             int slotIndex = 0;
@@ -696,48 +735,56 @@ public class UIManager : MonoBehaviour
         RefreshWires();
         UpdatePlayButtonVisual(false);
         SetStatusBanner("CIRCUIT OPEN — DRAG MODULES TO BOARD & DRAG PORTS TO WIRE [START] -> [LOOP]");
+        UpdateCameraTunerReadout();
     }
 
     private void PositionPaletteCard(RectTransform rt, int index, int totalVisible = 4)
     {
-        int col = index % 2;
-        int row = index / 2;
         rt.anchorMin = new Vector2(0.5f, 1f);
         rt.anchorMax = new Vector2(0.5f, 1f);
         rt.pivot = new Vector2(0.5f, 1f);
         rt.sizeDelta = new Vector2(110f, 110f);
 
+        if (totalVisible > 6)
+        {
+            // Big loadouts (7-9 modules): compact 3-column grid so every card stays inside the dock
+            int col = index % 3;
+            int row = index / 3;
+            rt.localScale = new Vector3(0.78f, 0.78f, 1f);
+            rt.anchoredPosition = new Vector2((col - 1) * 102f, -4f - row * 94f);
+            return;
+        }
+
+        int col2 = index % 2;
+        int row2 = index / 2;
         if (totalVisible > 4)
         {
             rt.localScale = new Vector3(0.84f, 0.84f, 1f);
-            float x = (col == 0) ? -64f : 64f;
-            float y = -6f - row * 100f;
+            float x = (col2 == 0) ? -64f : 64f;
+            float y = -6f - row2 * 100f;
             rt.anchoredPosition = new Vector2(x, y);
         }
         else
         {
             rt.localScale = Vector3.one;
-            float x = (col == 0) ? -68f : 68f;
-            float y = -14f - row * 122f;
+            float x = (col2 == 0) ? -68f : 68f;
+            float y = -14f - row2 * 122f;
             rt.anchoredPosition = new Vector2(x, y);
         }
     }
 
     private void ReflowPaletteCards()
     {
-        int totalVisible = 0;
-        foreach (var pc in paletteCards)
-        {
-            if (pc != null && pc.gameObject.activeSelf)
-                totalVisible++;
-        }
+        // Grid style is picked from the level's full loadout size (not the remaining cards),
+        // so the dock layout stays stable while modules are dragged out and back in.
+        int layoutCount = paletteCards.Count(pc => pc != null);
 
         int visibleIdx = 0;
         foreach (var pc in paletteCards)
         {
             if (pc != null && pc.gameObject.activeSelf)
             {
-                PositionPaletteCard(pc.rectTransform, visibleIdx, totalVisible);
+                PositionPaletteCard(pc.rectTransform, visibleIdx, layoutCount);
                 visibleIdx++;
             }
         }
@@ -906,10 +953,12 @@ public class UIManager : MonoBehaviour
         if (!IsEditingAllowed || paletteCard == null || nodesLayer == null) return;
 
         int idx = graphNodes.Count;
-        bool fivePlus = paletteCards != null && paletteCards.Count > 4;
-        float x = fivePlus ? (-280f + idx * 140f) : (-220f + idx * 160f);
-        float y = (idx % 2 == 0) ? 28f : -48f;
-        Vector2 pos = SnapToGrid(new Vector2(Mathf.Clamp(x, -310f, 310f), y));
+        // 5-wide x 2-row staggered grid between START and LOOP, so big loadouts never stack up.
+        int col = idx % 5;
+        int row = (idx / 5) % 2;
+        float x = -300f + col * 150f;
+        float y = (row == 0 ? 40f : -90f) + ((col % 2 == 0) ? 0f : -24f);
+        Vector2 pos = SnapToGrid(new Vector2(x, y));
 
         // Places node UNWIRED on the circuit board — player manually wires the ports!
         SpawnGraphNodeFromPalette(paletteCard, pos);
@@ -936,14 +985,15 @@ public class UIManager : MonoBehaviour
 
     public void OnGraphNodeDragEnded(NodeCardUI graphNode, Vector2 screenPos)
     {
-        if (!IsEditingAllowed || graphNode == null || graphNode.isFixedEndpoint) return;
+        if (!IsEditingAllowed || graphNode == null) return;
 
         Camera cam = mainCanvas != null && mainCanvas.renderMode != RenderMode.ScreenSpaceOverlay
             ? mainCanvas.worldCamera
             : null;
 
         // If dragged back onto NODE MODIFIERS panel on the left, remove from graph and restore to palette
-        if (paletteContainer != null && RectTransformUtility.RectangleContainsScreenPoint(
+        // (START / LOOP endpoints are movable but can never be removed)
+        if (!graphNode.isFixedEndpoint && paletteContainer != null && RectTransformUtility.RectangleContainsScreenPoint(
             paletteContainer.parent as RectTransform, screenPos, cam))
         {
             RemoveGraphNode(graphNode);
@@ -1394,7 +1444,7 @@ public class UIManager : MonoBehaviour
     {
         if (codeExecutor != null && codeExecutor.IsRunning())
         {
-            StopProgram();
+            ResetProgram();
         }
         else
         {
@@ -1425,11 +1475,16 @@ public class UIManager : MonoBehaviour
             return;
         }
 
-        // Always start loop cleanly from the StartTile
+        // Always start run cleanly from StartTile — no pausing or mid-track rewiring resume!
         if (player == null) player = codeExecutor.player;
-        if (player != null && player.currentState == PlayerState.Win)
+        if (player != null)
         {
-            if (LevelManager.Instance != null) LevelManager.Instance.ResetForRetry();
+            player.GetComponent<PlayerRespawn>()?.CancelPendingRespawn();
+            player.PlaceOnStartTile();
+        }
+        if (TileManager.Instance != null)
+        {
+            TileManager.Instance.ResetDynamicEnvironment();
         }
 
         var ordered = commands.BuildSequence();
@@ -1485,20 +1540,12 @@ public class UIManager : MonoBehaviour
 
     public void StopProgram()
     {
-        if (codeExecutor != null) codeExecutor.StopExecution();
-        ClearExecutionHighlights();
-        UpdatePlayButtonVisual(false);
-
-        var robot = player != null ? player : codeExecutor != null ? codeExecutor.player : null;
-        if (robot == null) return;
-        robot.GetComponent<PlayerRespawn>()?.CancelPendingRespawn();
-        if (robot.currentState == PlayerState.Dead) robot.PlaceOnStartTile();
-        else robot.StopAtCurrentTile();
-        SetStatusBanner("LOOP PAUSED — CLICK PLAY TO RUN OR RESET TO RETURN TO START");
+        ResetProgram();
     }
 
     public void ResetProgram()
     {
+        if (codeExecutor != null) codeExecutor.StopExecution();
         ClearExecutionHighlights();
         UpdatePlayButtonVisual(false);
         HideVictoryBanner();
@@ -1506,12 +1553,15 @@ public class UIManager : MonoBehaviour
         if (LevelManager.Instance != null) LevelManager.Instance.ResetForRetry();
         else
         {
-            if (codeExecutor != null) codeExecutor.StopExecution();
             var robot = player != null ? player : codeExecutor != null ? codeExecutor.player : null;
             if (robot != null)
             {
                 robot.GetComponent<PlayerRespawn>()?.CancelPendingRespawn();
                 robot.PlaceOnStartTile();
+            }
+            if (TileManager.Instance != null)
+            {
+                TileManager.Instance.ResetDynamicEnvironment();
             }
         }
         foreach (var old in spawnedCommands)
@@ -1563,12 +1613,12 @@ public class UIManager : MonoBehaviour
     {
         if (centerPlayBtnIcon != null)
         {
-            Sprite s = running ? stopBtnSprite : playBtnSprite;
+            Sprite s = running ? (resetBtnSprite != null ? resetBtnSprite : stopBtnSprite) : playBtnSprite;
             if (s != null) centerPlayBtnIcon.sprite = s;
         }
         if (centerPlayStateLabel != null)
         {
-            centerPlayStateLabel.text = running ? "STOP" : "RUN LOOP";
+            centerPlayStateLabel.text = running ? "RESET" : "RUN LOOP";
         }
     }
 
@@ -1598,6 +1648,250 @@ public class UIManager : MonoBehaviour
     {
         if (victoryOverlay != null)
             victoryOverlay.SetActive(false);
+    }
+
+    // =====================================================================
+    // Interactive Camera Optics Tuner HUD
+    // =====================================================================
+
+    private void BuildCameraTunerModal(RectTransform parent)
+    {
+        cameraTunerPanel = CreateUiObject("CameraTunerPanel", parent, true);
+        var tr = cameraTunerPanel.GetComponent<RectTransform>();
+        tr.anchorMin = new Vector2(1f, 1f);
+        tr.anchorMax = new Vector2(1f, 1f);
+        tr.pivot = new Vector2(1f, 1f);
+        tr.anchoredPosition = new Vector2(-20f, -58f);
+        tr.sizeDelta = new Vector2(380f, 320f);
+        cameraTunerPanel.GetComponent<Image>().color = new Color(0.06f, 0.09f, 0.15f, 0.96f);
+
+        // Top accent line
+        GameObject topStripe = CreateUiObject("TopAccent", tr, true);
+        var tsRect = topStripe.GetComponent<RectTransform>();
+        tsRect.anchorMin = new Vector2(0f, 1f);
+        tsRect.anchorMax = new Vector2(1f, 1f);
+        tsRect.pivot = new Vector2(0.5f, 1f);
+        tsRect.anchoredPosition = Vector2.zero;
+        tsRect.sizeDelta = new Vector2(0f, 3f);
+        topStripe.GetComponent<Image>().color = new Color(0.00f, 0.88f, 1f, 0.9f);
+
+        // Header Title
+        var title = CreateStyledText(
+            tr,
+            "TunerTitle",
+            "CAMERA OPTICS LAB // TUNER",
+            14f,
+            new Color(0.00f, 0.90f, 1.00f, 1f),
+            TextAlignmentOptions.Left);
+        title.rectTransform.anchorMin = new Vector2(0f, 1f);
+        title.rectTransform.anchorMax = new Vector2(0f, 1f);
+        title.rectTransform.pivot = new Vector2(0f, 1f);
+        title.rectTransform.anchoredPosition = new Vector2(14f, -10f);
+        title.rectTransform.sizeDelta = new Vector2(280f, 24f);
+
+        // Close button [X]
+        GameObject closeBtn = CreateUiObject("CloseTunerBtn", tr, true, true);
+        var cbr = closeBtn.GetComponent<RectTransform>();
+        cbr.anchorMin = new Vector2(1f, 1f);
+        cbr.anchorMax = new Vector2(1f, 1f);
+        cbr.pivot = new Vector2(1f, 1f);
+        cbr.anchoredPosition = new Vector2(-10f, -8f);
+        cbr.sizeDelta = new Vector2(26f, 24f);
+        closeBtn.GetComponent<Image>().color = new Color(0.35f, 0.12f, 0.18f, 0.95f);
+        CreateStyledText(cbr, "Lbl", "X", 13f, Color.white, TextAlignmentOptions.Center);
+        var cb = closeBtn.GetComponent<Button>();
+        cb.targetGraphic = closeBtn.GetComponent<Image>();
+        cb.onClick.AddListener(() =>
+        {
+            SetCameraTunerVisible(false);
+            if (GameCameraController.Instance != null)
+                GameCameraController.Instance.isTunerOpen = false;
+        });
+
+        // 1. Projection Toggle Button (2D Iso vs 3D Persp)
+        GameObject projBtn = CreateUiObject("ProjectionToggleBtn", tr, true, true);
+        var pr = projBtn.GetComponent<RectTransform>();
+        pr.anchorMin = new Vector2(0.5f, 1f);
+        pr.anchorMax = new Vector2(0.5f, 1f);
+        pr.pivot = new Vector2(0.5f, 1f);
+        pr.anchoredPosition = new Vector2(0f, -40f);
+        pr.sizeDelta = new Vector2(352f, 30f);
+        var projImg = projBtn.GetComponent<Image>();
+        projImg.color = new Color(0.12f, 0.22f, 0.38f, 0.95f);
+        camModeBtnLabel = CreateStyledText(pr, "ModeLbl", "PROJECTION: 2D ISOMETRIC", 13.5f, Color.white, TextAlignmentOptions.Center);
+        var pb = projBtn.GetComponent<Button>();
+        pb.targetGraphic = projImg;
+        pb.onClick.AddListener(() =>
+        {
+            if (GameCameraController.Instance != null)
+                GameCameraController.Instance.ToggleProjection();
+        });
+
+        // 2. Zoom / Distance Row
+        camZoomReadout = CreateStyledText(
+            tr,
+            "ZoomReadout",
+            "ZOOM (ORTHO): 3.40 (P3 Sweet)",
+            13f,
+            new Color(0.85f, 0.92f, 1f, 0.95f),
+            TextAlignmentOptions.Left);
+        camZoomReadout.rectTransform.anchorMin = new Vector2(0f, 1f);
+        camZoomReadout.rectTransform.anchorMax = new Vector2(0f, 1f);
+        camZoomReadout.rectTransform.pivot = new Vector2(0f, 0.5f);
+        camZoomReadout.rectTransform.anchoredPosition = new Vector2(14f, -90f);
+        camZoomReadout.rectTransform.sizeDelta = new Vector2(250f, 26f);
+
+        CreateTunerMiniButton(tr, "ZoomOutBtn", new Vector2(285f, -90f), new Vector2(40f, 24f), "[-]",
+            () => GameCameraController.Instance?.AdjustZoom(0.3f));
+        CreateTunerMiniButton(tr, "ZoomInBtn", new Vector2(335f, -90f), new Vector2(40f, 24f), "[+]",
+            () => GameCameraController.Instance?.AdjustZoom(-0.3f));
+
+        // 3. FOV / Focal Length Row
+        camFovReadout = CreateStyledText(
+            tr,
+            "FovReadout",
+            "FOV: 36° (Persp)",
+            13f,
+            new Color(0.85f, 0.92f, 1f, 0.95f),
+            TextAlignmentOptions.Left);
+        camFovReadout.rectTransform.anchorMin = new Vector2(0f, 1f);
+        camFovReadout.rectTransform.anchorMax = new Vector2(0f, 1f);
+        camFovReadout.rectTransform.pivot = new Vector2(0f, 0.5f);
+        camFovReadout.rectTransform.anchoredPosition = new Vector2(14f, -126f);
+        camFovReadout.rectTransform.sizeDelta = new Vector2(250f, 26f);
+
+        CreateTunerMiniButton(tr, "FovDecBtn", new Vector2(285f, -126f), new Vector2(40f, 24f), "[-]",
+            () => GameCameraController.Instance?.AdjustFov(-3f));
+        CreateTunerMiniButton(tr, "FovIncBtn", new Vector2(335f, -126f), new Vector2(40f, 24f), "[+]",
+            () => GameCameraController.Instance?.AdjustFov(3f));
+
+        // 4. Orbit Angles (Pitch / Yaw) Row
+        camAngleReadout = CreateStyledText(
+            tr,
+            "AngleReadout",
+            "PITCH: 24° | YAW: -32°",
+            12.5f,
+            new Color(0.85f, 0.92f, 1f, 0.95f),
+            TextAlignmentOptions.Left);
+        camAngleReadout.rectTransform.anchorMin = new Vector2(0f, 1f);
+        camAngleReadout.rectTransform.anchorMax = new Vector2(0f, 1f);
+        camAngleReadout.rectTransform.pivot = new Vector2(0f, 0.5f);
+        camAngleReadout.rectTransform.anchoredPosition = new Vector2(14f, -162f);
+        camAngleReadout.rectTransform.sizeDelta = new Vector2(190f, 26f);
+
+        CreateTunerMiniButton(tr, "PitchDecBtn", new Vector2(215f, -162f), new Vector2(36f, 24f), "P-",
+            () => GameCameraController.Instance?.AdjustPitch(-4f));
+        CreateTunerMiniButton(tr, "PitchIncBtn", new Vector2(255f, -162f), new Vector2(36f, 24f), "P+",
+            () => GameCameraController.Instance?.AdjustPitch(4f));
+        CreateTunerMiniButton(tr, "YawDecBtn", new Vector2(298f, -162f), new Vector2(36f, 24f), "Y-",
+            () => GameCameraController.Instance?.AdjustYaw(-6f));
+        CreateTunerMiniButton(tr, "YawIncBtn", new Vector2(338f, -162f), new Vector2(36f, 24f), "Y+",
+            () => GameCameraController.Instance?.AdjustYaw(6f));
+
+        // 5. Preset Buttons (2x2 Grid)
+        CreateTunerPresetButton(tr, "PresetP3", new Vector2(98f, -204f), new Vector2(170f, 26f), "P3 SWEET SPOT",
+            () => GameCameraController.Instance?.SetPresetP3SweetSpot(), new Color(0.00f, 0.44f, 0.55f, 0.95f));
+        CreateTunerPresetButton(tr, "Preset3D", new Vector2(282f, -204f), new Vector2(170f, 26f), "3D PERSPECTIVE",
+            () => GameCameraController.Instance?.SetPreset3DPerspective(), new Color(0.20f, 0.28f, 0.48f, 0.95f));
+        CreateTunerPresetButton(tr, "PresetClose", new Vector2(98f, -236f), new Vector2(170f, 26f), "TACTICAL CLOSE",
+            () => GameCameraController.Instance?.SetPresetTacticalClose(), new Color(0.16f, 0.32f, 0.36f, 0.95f));
+        CreateTunerPresetButton(tr, "PresetTop", new Vector2(282f, -236f), new Vector2(170f, 26f), "TOP-DOWN",
+            () => GameCameraController.Instance?.SetPresetTopDown(), new Color(0.26f, 0.20f, 0.36f, 0.95f));
+
+        // 6. Navigation hint at bottom
+        var hints = CreateStyledText(
+            tr,
+            "NavHints",
+            "Scroll: Zoom | RMB Drag: Orbit | MMB Drag: Pan\nKeys: [P] 2D/3D | [C] Tuner | [R] Reset to P3",
+            10.5f,
+            new Color(0.55f, 0.65f, 0.78f, 0.9f),
+            TextAlignmentOptions.Center);
+        hints.rectTransform.anchorMin = new Vector2(0.5f, 0f);
+        hints.rectTransform.anchorMax = new Vector2(0.5f, 0f);
+        hints.rectTransform.pivot = new Vector2(0.5f, 0f);
+        hints.rectTransform.anchoredPosition = new Vector2(0f, 8f);
+        hints.rectTransform.sizeDelta = new Vector2(360f, 32f);
+
+        cameraTunerPanel.SetActive(false);
+    }
+
+    private void CreateTunerMiniButton(Transform parent, string name, Vector2 pos, Vector2 size, string text, UnityEngine.Events.UnityAction onClick)
+    {
+        GameObject obj = CreateUiObject(name, parent, true, true);
+        var r = obj.GetComponent<RectTransform>();
+        r.anchorMin = new Vector2(0f, 1f);
+        r.anchorMax = new Vector2(0f, 1f);
+        r.pivot = new Vector2(0.5f, 0.5f);
+        r.anchoredPosition = pos;
+        r.sizeDelta = size;
+        var img = obj.GetComponent<Image>();
+        img.color = new Color(0.16f, 0.22f, 0.32f, 0.95f);
+        CreateStyledText(r, "Lbl", text, 12f, Color.white, TextAlignmentOptions.Center);
+        var b = obj.GetComponent<Button>();
+        b.targetGraphic = img;
+        b.onClick.AddListener(onClick);
+    }
+
+    private void CreateTunerPresetButton(Transform parent, string name, Vector2 pos, Vector2 size, string text, UnityEngine.Events.UnityAction onClick, Color color)
+    {
+        GameObject obj = CreateUiObject(name, parent, true, true);
+        var r = obj.GetComponent<RectTransform>();
+        r.anchorMin = new Vector2(0f, 1f);
+        r.anchorMax = new Vector2(0f, 1f);
+        r.pivot = new Vector2(0.5f, 0.5f);
+        r.anchoredPosition = pos;
+        r.sizeDelta = size;
+        var img = obj.GetComponent<Image>();
+        img.color = color;
+        CreateStyledText(r, "Lbl", text, 11.5f, Color.white, TextAlignmentOptions.Center);
+        var b = obj.GetComponent<Button>();
+        b.targetGraphic = img;
+        b.onClick.AddListener(onClick);
+    }
+
+    public void SetCameraTunerVisible(bool visible)
+    {
+        if (cameraTunerPanel != null)
+        {
+            cameraTunerPanel.SetActive(visible);
+            if (visible)
+            {
+                cameraTunerPanel.transform.SetAsLastSibling();
+                UpdateCameraTunerReadout();
+            }
+        }
+    }
+
+    public void UpdateCameraTunerReadout()
+    {
+        var cam = GameCameraController.Instance;
+        if (cam == null) return;
+
+        bool isPersp = cam.isPerspective;
+        if (camBtnLabel != null)
+            camBtnLabel.text = isPersp ? "CAM: 3D" : "CAM: ISO";
+
+        if (camModeBtnLabel != null)
+            camModeBtnLabel.text = isPersp ? "PROJECTION: 3D PERSPECTIVE" : "PROJECTION: 2D ISOMETRIC";
+
+        if (camZoomReadout != null)
+        {
+            camZoomReadout.text = isPersp
+                ? $"DISTANCE: {cam.cameraDistance:F1}m"
+                : $"ZOOM (ORTHO): {cam.orthoSize:F2}  (P3 = 3.4)";
+        }
+
+        if (camFovReadout != null)
+        {
+            camFovReadout.text = isPersp
+                ? $"FOV: {cam.perspectiveFov:F0}° (Focal ~{Mathf.RoundToInt(1700f / Mathf.Max(1f, cam.perspectiveFov))}mm)"
+                : "FOV: N/A (Orthographic)";
+        }
+
+        if (camAngleReadout != null)
+        {
+            camAngleReadout.text = $"PITCH: {cam.pitchAngle:F0}°  |  YAW: {cam.yawAngle:F0}°";
+        }
     }
 
     // =====================================================================

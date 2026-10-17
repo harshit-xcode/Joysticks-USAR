@@ -55,7 +55,7 @@ public class LevelManager : MonoBehaviour
 
     public void EnsureCampaignInitialized()
     {
-        if (campaignLevels == null || campaignLevels.Count != 7 || campaignLevels[6].title != "PROTOCOL 07 // CHRONO OVERDRIVE")
+        if (campaignLevels == null || campaignLevels.Count != 7 || campaignLevels[6].title != "PROTOCOL 07 // DYNAMIC MATRIX")
         {
             campaignLevels = LevelCampaignCatalog.CreateCampaignLevels();
         }

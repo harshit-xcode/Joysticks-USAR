@@ -210,46 +210,7 @@ public static class LevelCampaignCatalog
         levels.Add(lvl5);
 
         // =====================================================================
-        // LEVEL 6: PROTOCOL 06 // DYNAMIC CLAMP
-        // Combines Laser Phase Gates (Closed + Open) & Hydraulic Phase Spikes with Wall-Clamp Asymmetry!
-        // - On Pass 1, (1,1) PhaseGateClosed acts as a wall clamp so [LEFT] at (1,0) bumps harmlessly,
-        //   keeping the robot on the y=0 lane for [JUMP] (1,0)->(3,0), then [PULSE] flips all gates!
-        // - On Pass 2, [WALK] steps onto (4,0) PhaseSpikeDown (safe on even Beat 4), [LEFT] steps
-        //   through the now-OPEN (4,1) gate, [JUMP] vaults (4,1)->(6,1), and [PULSE] flips gates back!
-        // Unique Solution (1/64): START -> WALK -> LEFT -> JUMP -> PULSE -> LOOP
-        // =====================================================================
-        var lvl6 = new LevelDefinition
-        {
-            levelIndex = 6,
-            title = "PROTOCOL 06 // DYNAMIC CLAMP",
-            objectiveHint = "USE A CLOSED LASER GATE AS A WALL CLAMP ON PASS 1, THEN [PULSE] TO OPEN THE UPPER LANE!"
-        };
-        lvl6.unlockedNodes.Add(new NodeLoadoutItem(BlockType.Walk, 1));     // 1x WALK
-        lvl6.unlockedNodes.Add(new NodeLoadoutItem(BlockType.MoveLeft, 1)); // 1x LEFT
-        lvl6.unlockedNodes.Add(new NodeLoadoutItem(BlockType.Lava, 1));     // 1x JUMP
-        lvl6.unlockedNodes.Add(new NodeLoadoutItem(BlockType.Wait, 1));     // 1x PULSE
-
-        lvl6.cells.Add(new TileCellData(0, 0, TileType.Start));
-        lvl6.cells.Add(new TileCellData(0, 1, TileType.Obstacle, true));
-        lvl6.cells.Add(new TileCellData(1, 0, TileType.Free));
-        lvl6.cells.Add(new TileCellData(1, 1, TileType.PhaseGateClosed, true)); // Clamps LEFT on Pass 1!
-        lvl6.cells.Add(new TileCellData(2, 1, TileType.Lava));
-        lvl6.cells.Add(new TileCellData(3, 1, TileType.Lava));
-        lvl6.cells.Add(new TileCellData(2, 0, TileType.Lava));
-        lvl6.cells.Add(new TileCellData(3, 0, TileType.Free));
-        lvl6.cells.Add(new TileCellData(4, 0, TileType.PhaseSpikeDown));        // Safe on even Beat 4!
-        lvl6.cells.Add(new TileCellData(5, 0, TileType.PhaseGateOpen));         // Closes when Pass 1 PULSE fires!
-        lvl6.cells.Add(new TileCellData(6, 0, TileType.Lava));
-        lvl6.cells.Add(new TileCellData(4, 1, TileType.PhaseGateClosed, true)); // Opens when Pass 1 PULSE fires!
-        lvl6.cells.Add(new TileCellData(5, 1, TileType.Lava));
-        lvl6.cells.Add(new TileCellData(6, 1, TileType.Free));
-        lvl6.cells.Add(new TileCellData(7, 1, TileType.Free));
-        lvl6.cells.Add(new TileCellData(8, 1, TileType.Lava));
-        lvl6.cells.Add(new TileCellData(9, 1, TileType.End));
-        levels.Add(lvl6);
-
-        // =====================================================================
-        // LEVEL 7: PROTOCOL 07 // CHRONO OVERDRIVE (7-Level Grand Finale)
+        // LEVEL 6: PROTOCOL 06 // CHRONO OVERDRIVE
         // Uses ALL 5 MODULES (1x JUMP, 1x LEFT, 1x PULSE, 1x WALK, 1x RIGHT).
         // Engineered with 2 Intuitive Traps + 1 "AHA!" Epiphany:
         // - Intuitive Trap #1 (Early Pulse at (2,0): J -> P -> L -> W -> R or J -> P -> W -> R -> L):
@@ -271,49 +232,115 @@ public static class LevelCampaignCatalog
         //   * Pass 3: J(6,0->8,0) lands on PhaseSpikeDown on Beat 10 (EVEN -> SAFE!), L steps to (8,1),
         //     P flips (9,1) Gate OPEN, W steps through (9,1), and R steps into (9,0) END!
         // =====================================================================
+        var lvl6 = new LevelDefinition
+        {
+            levelIndex = 6,
+            title = "PROTOCOL 06 // CHRONO OVERDRIVE",
+            objectiveHint = "WEAVE ALL 5 MODULES! TIME YOUR [PULSE] TO SYNC SPIKE BEATS & LASER BACKSTOPS"
+        };
+        lvl6.unlockedNodes.Add(new NodeLoadoutItem(BlockType.Lava, 1));      // 1x JUMP
+        lvl6.unlockedNodes.Add(new NodeLoadoutItem(BlockType.MoveLeft, 1));  // 1x LEFT
+        lvl6.unlockedNodes.Add(new NodeLoadoutItem(BlockType.Wait, 1));      // 1x PULSE
+        lvl6.unlockedNodes.Add(new NodeLoadoutItem(BlockType.Walk, 1));      // 1x WALK
+        lvl6.unlockedNodes.Add(new NodeLoadoutItem(BlockType.MoveRight, 1)); // 1x RIGHT
+
+        // Entry & Gate (y = 0)
+        lvl6.cells.Add(new TileCellData(0, 0, TileType.Start));
+        lvl6.cells.Add(new TileCellData(0, -1, TileType.Lava));
+        lvl6.cells.Add(new TileCellData(1, 0, TileType.Lava));
+        lvl6.cells.Add(new TileCellData(2, 0, TileType.Free));
+        lvl6.cells.Add(new TileCellData(2, 1, TileType.Obstacle, true));
+        lvl6.cells.Add(new TileCellData(2, -1, TileType.Obstacle, true));
+        lvl6.cells.Add(new TileCellData(3, 0, TileType.PhaseGateClosed, true)); // Must be opened by PULSE at (2,0)!
+        lvl6.cells.Add(new TileCellData(4, 0, TileType.Obstacle, true));
+
+        // Upper Decoy Bridge (y = +1)
+        lvl6.cells.Add(new TileCellData(3, 1, TileType.Free));
+        lvl6.cells.Add(new TileCellData(4, 1, TileType.Lava));
+        lvl6.cells.Add(new TileCellData(5, 1, TileType.Free));
+        lvl6.cells.Add(new TileCellData(6, 1, TileType.PhaseGateOpen));         // Open on even pulse parity -> traps J->R->P->W->L!
+        lvl6.cells.Add(new TileCellData(7, 1, TileType.Obstacle, true));
+
+        // Lower True Bridge (y = -1)
+        lvl6.cells.Add(new TileCellData(3, -1, TileType.Free));
+        lvl6.cells.Add(new TileCellData(4, -1, TileType.Lava));
+        lvl6.cells.Add(new TileCellData(5, -1, TileType.PhaseSpikeUp));         // Safe on odd Beat 5!
+        lvl6.cells.Add(new TileCellData(6, -1, TileType.PhaseGateClosed, true)); // Closes on Pass 2 PULSE to clamp R at (6,0)!
+
+        // Center Re-entry & Finale (y = 0 & y = +1)
+        lvl6.cells.Add(new TileCellData(5, 0, TileType.Free));
+        lvl6.cells.Add(new TileCellData(6, 0, TileType.Free));
+        lvl6.cells.Add(new TileCellData(7, 0, TileType.Lava));
+        lvl6.cells.Add(new TileCellData(8, 0, TileType.PhaseSpikeDown));        // Safe on even Beat 10!
+        lvl6.cells.Add(new TileCellData(8, 1, TileType.Free));
+        lvl6.cells.Add(new TileCellData(9, 1, TileType.PhaseGateClosed, true)); // Opens on Pass 3 PULSE so W steps (8,1)->(9,1)!
+        lvl6.cells.Add(new TileCellData(9, 0, TileType.End));                   // Final R steps (9,1)->(9,0) GOAL!
+        levels.Add(lvl6);
+
+        // =====================================================================
+        // LEVEL 7: PROTOCOL 07 // DYNAMIC MATRIX (Grand Finale)
+        // A large 4-row x 11-column factory floor with multiple paths, choices, and genuine puzzle depth.
+        // Provides a generous 7-node loadout (2x WALK, 2x JUMP, 1x LEFT, 1x RIGHT, 1x PULSE).
+        // Players can design their own loop strategy across 9 distinct routes:
+        // - Wave Weave: [JUMP] -> [LEFT] -> [JUMP] -> [RIGHT] oscillating across lanes!
+        // - Laser Override: [JUMP] -> [PULSE] -> [JUMP] -> [LEFT] bypassing laser gates!
+        // - Paced Stride: [WALK] -> [JUMP] -> [LEFT] -> [JUMP] -> [WALK] weaving through safe windows!
+        // =====================================================================
         var lvl7 = new LevelDefinition
         {
             levelIndex = 7,
-            title = "PROTOCOL 07 // CHRONO OVERDRIVE",
-            objectiveHint = "GRAND FINALE — WEAVE ALL 5 MODULES! TIME YOUR [PULSE] TO SYNC SPIKE BEATS & LASER BACKSTOPS"
+            title = "PROTOCOL 07 // DYNAMIC MATRIX",
+            objectiveHint = "GRAND FINALE — EXPANDED SECTOR! WIRE A 4-6 NODE LOOP: WEAVE LANES, TIME GATES, OR VAULT SPIKES"
         };
-        lvl7.unlockedNodes.Add(new NodeLoadoutItem(BlockType.Lava, 1));      // 1x JUMP
+        lvl7.unlockedNodes.Add(new NodeLoadoutItem(BlockType.Walk, 2));      // 2x WALK
+        lvl7.unlockedNodes.Add(new NodeLoadoutItem(BlockType.Lava, 2));      // 2x JUMP
         lvl7.unlockedNodes.Add(new NodeLoadoutItem(BlockType.MoveLeft, 1));  // 1x LEFT
-        lvl7.unlockedNodes.Add(new NodeLoadoutItem(BlockType.Wait, 1));      // 1x PULSE
-        lvl7.unlockedNodes.Add(new NodeLoadoutItem(BlockType.Walk, 1));      // 1x WALK
         lvl7.unlockedNodes.Add(new NodeLoadoutItem(BlockType.MoveRight, 1)); // 1x RIGHT
+        lvl7.unlockedNodes.Add(new NodeLoadoutItem(BlockType.Wait, 1));      // 1x PULSE
 
-        // Entry & Gate (y = 0)
-        lvl7.cells.Add(new TileCellData(0, 0, TileType.Start));
-        lvl7.cells.Add(new TileCellData(0, -1, TileType.Lava));
-        lvl7.cells.Add(new TileCellData(1, 0, TileType.Lava));
-        lvl7.cells.Add(new TileCellData(2, 0, TileType.Free));
-        lvl7.cells.Add(new TileCellData(2, 1, TileType.Obstacle, true));
-        lvl7.cells.Add(new TileCellData(2, -1, TileType.Obstacle, true));
-        lvl7.cells.Add(new TileCellData(3, 0, TileType.PhaseGateClosed, true)); // Must be opened by PULSE at (2,0)!
-        lvl7.cells.Add(new TileCellData(4, 0, TileType.Obstacle, true));
-
-        // Upper Decoy Bridge (y = +1)
-        lvl7.cells.Add(new TileCellData(3, 1, TileType.Free));
-        lvl7.cells.Add(new TileCellData(4, 1, TileType.Lava));
-        lvl7.cells.Add(new TileCellData(5, 1, TileType.Free));
-        lvl7.cells.Add(new TileCellData(6, 1, TileType.PhaseGateOpen));         // Open on even pulse parity -> traps J->R->P->W->L!
-        lvl7.cells.Add(new TileCellData(7, 1, TileType.Obstacle, true));
-
-        // Lower True Bridge (y = -1)
-        lvl7.cells.Add(new TileCellData(3, -1, TileType.Free));
-        lvl7.cells.Add(new TileCellData(4, -1, TileType.Lava));
-        lvl7.cells.Add(new TileCellData(5, -1, TileType.PhaseSpikeUp));         // Safe on odd Beat 5!
-        lvl7.cells.Add(new TileCellData(6, -1, TileType.PhaseGateClosed, true)); // Closes on Pass 2 PULSE to clamp R at (6,0)!
-
-        // Center Re-entry & Finale (y = 0 & y = +1)
+        // 4-Row Arena Grid (z = 0 to 3, x = 0 to 10)
+        lvl7.cells.Add(new TileCellData(0, 0, TileType.Free));
+        lvl7.cells.Add(new TileCellData(0, 1, TileType.Start));
+        lvl7.cells.Add(new TileCellData(0, 2, TileType.Free));
+        lvl7.cells.Add(new TileCellData(0, 3, TileType.Free));
+        lvl7.cells.Add(new TileCellData(1, 0, TileType.Obstacle, true));
+        lvl7.cells.Add(new TileCellData(1, 1, TileType.Free));
+        lvl7.cells.Add(new TileCellData(1, 2, TileType.Obstacle, true));
+        lvl7.cells.Add(new TileCellData(1, 3, TileType.Obstacle, true));
+        lvl7.cells.Add(new TileCellData(2, 0, TileType.PhaseSpikeDown));
+        lvl7.cells.Add(new TileCellData(2, 1, TileType.Free));
+        lvl7.cells.Add(new TileCellData(2, 2, TileType.Free));
+        lvl7.cells.Add(new TileCellData(2, 3, TileType.Free));
+        lvl7.cells.Add(new TileCellData(3, 0, TileType.Lava));
+        lvl7.cells.Add(new TileCellData(3, 1, TileType.Obstacle, true));
+        lvl7.cells.Add(new TileCellData(3, 2, TileType.Free));
+        lvl7.cells.Add(new TileCellData(3, 3, TileType.Obstacle, true));
+        lvl7.cells.Add(new TileCellData(4, 0, TileType.PhaseSpikeUp));
+        lvl7.cells.Add(new TileCellData(4, 1, TileType.Free));
+        lvl7.cells.Add(new TileCellData(4, 2, TileType.PhaseGateOpen));
+        lvl7.cells.Add(new TileCellData(4, 3, TileType.Obstacle, true));
         lvl7.cells.Add(new TileCellData(5, 0, TileType.Free));
+        lvl7.cells.Add(new TileCellData(5, 2, TileType.Free));
+        lvl7.cells.Add(new TileCellData(5, 3, TileType.PhaseSpikeUp));
         lvl7.cells.Add(new TileCellData(6, 0, TileType.Free));
-        lvl7.cells.Add(new TileCellData(7, 0, TileType.Lava));
-        lvl7.cells.Add(new TileCellData(8, 0, TileType.PhaseSpikeDown));        // Safe on even Beat 10!
-        lvl7.cells.Add(new TileCellData(8, 1, TileType.Free));
-        lvl7.cells.Add(new TileCellData(9, 1, TileType.PhaseGateClosed, true)); // Opens on Pass 3 PULSE so W steps (8,1)->(9,1)!
-        lvl7.cells.Add(new TileCellData(9, 0, TileType.End));                   // Final R steps (9,1)->(9,0) GOAL!
+        lvl7.cells.Add(new TileCellData(6, 1, TileType.Free));
+        lvl7.cells.Add(new TileCellData(6, 2, TileType.Free));
+        lvl7.cells.Add(new TileCellData(6, 3, TileType.Free));
+        lvl7.cells.Add(new TileCellData(7, 0, TileType.Free));
+        lvl7.cells.Add(new TileCellData(7, 1, TileType.PhaseSpikeDown));
+        lvl7.cells.Add(new TileCellData(7, 2, TileType.Lava));
+        lvl7.cells.Add(new TileCellData(7, 3, TileType.Free));
+        lvl7.cells.Add(new TileCellData(8, 0, TileType.Free));
+        lvl7.cells.Add(new TileCellData(8, 1, TileType.Obstacle, true));
+        lvl7.cells.Add(new TileCellData(8, 2, TileType.Free));
+        lvl7.cells.Add(new TileCellData(8, 3, TileType.Obstacle, true));
+        lvl7.cells.Add(new TileCellData(9, 1, TileType.Free));
+        lvl7.cells.Add(new TileCellData(9, 2, TileType.Lava));
+        lvl7.cells.Add(new TileCellData(9, 3, TileType.Free));
+        lvl7.cells.Add(new TileCellData(10, 0, TileType.Obstacle, true));
+        lvl7.cells.Add(new TileCellData(10, 1, TileType.Lava));
+        lvl7.cells.Add(new TileCellData(10, 2, TileType.End));
+        lvl7.cells.Add(new TileCellData(10, 3, TileType.Free));
         levels.Add(lvl7);
 
         return levels;

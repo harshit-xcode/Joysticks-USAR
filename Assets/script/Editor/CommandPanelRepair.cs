@@ -2,6 +2,7 @@
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.UI;
 using UnityEngine.EventSystems;
 
 // Editor builder and scene setup utility for the Isometric 3D + Node-Graph Puzzle Game.
@@ -33,23 +34,25 @@ public static class CommandPanelRepair
     [MenuItem("Tools/Joysticks/Preview Level 5 (Phase Pulse - EMP + Dynamic Gates)")]
     public static void PreviewL5() => SetupActiveSceneForLevel(4);
 
-    [MenuItem("Tools/Joysticks/Preview Level 6 (Dynamic Clamp - Gate Asymmetry)")]
+    [MenuItem("Tools/Joysticks/Preview Level 6 (Chrono Overdrive - Phase Weave)")]
     public static void PreviewL6() => SetupActiveSceneForLevel(5);
 
-    [MenuItem("Tools/Joysticks/Preview Level 7 (Chrono Overdrive - Grand Finale)")]
+    [MenuItem("Tools/Joysticks/Preview Level 7 (Dynamic Matrix - Grand Finale)")]
     public static void PreviewL7() => SetupActiveSceneForLevel(6);
 
-    [MenuItem("Tools/Joysticks/Test Wire Level 7 Solution Only (Play Mode)")]
-    public static void TestWireL7Only() => TestWireAndRun(6, new[] { BlockType.Lava, BlockType.MoveLeft, BlockType.Wait, BlockType.Walk, BlockType.MoveRight }, false);
+    [MenuItem("Tools/Joysticks/Test Wire Level 6 Solution Only (Play Mode)")]
+    public static void TestWireL6Only() => TestWireAndRun(5, new[] { BlockType.Lava, BlockType.MoveLeft, BlockType.Wait, BlockType.Walk, BlockType.MoveRight }, false);
 
     [MenuItem("Tools/Joysticks/Test Run Level 5 Solution (Play Mode)")]
     public static void TestRunL5() => TestWireAndRun(4, new[] { BlockType.Wait, BlockType.Lava, BlockType.Walk }, true);
 
     [MenuItem("Tools/Joysticks/Test Run Level 6 Solution (Play Mode)")]
-    public static void TestRunL6() => TestWireAndRun(5, new[] { BlockType.Walk, BlockType.MoveLeft, BlockType.Lava, BlockType.Wait }, true);
+    public static void TestRunL6() => TestWireAndRun(5, new[] { BlockType.Lava, BlockType.MoveLeft, BlockType.Wait, BlockType.Walk, BlockType.MoveRight }, true);
 
     [MenuItem("Tools/Joysticks/Test Run Level 7 Solution (Play Mode)")]
-    public static void TestRunL7() => TestWireAndRun(6, new[] { BlockType.Lava, BlockType.MoveLeft, BlockType.Wait, BlockType.Walk, BlockType.MoveRight }, true);
+    public static void TestRunL7() => TestWireAndRun(6, new[] { BlockType.Lava, BlockType.MoveLeft, BlockType.Lava, BlockType.MoveRight }, true);
+
+
 
     private static void TestWireAndRun(int levelIdx, BlockType[] order, bool runImmediately)
     {

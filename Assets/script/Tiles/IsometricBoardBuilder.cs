@@ -360,17 +360,19 @@ public static class IsometricBoardBuilder
 
         // Top half of screen is the 3D isometric scene (Y: 0.48 to 1.0)
         cam.rect = new Rect(0f, 0.48f, 1f, 0.52f);
-        cam.orthographic = true;
-        cam.orthographicSize = Mathf.Clamp(Mathf.Max(spanX * 0.28f, spanZ * 0.55f), 2.8f, 6.4f);
         cam.clearFlags = CameraClearFlags.SolidColor;
         cam.backgroundColor = new Color(0.22f, 0.05f, 0.07f, 1f); // Deep industrial crimson-black
 
-        // True isometric camera angle looking across the track
-        Quaternion isoRot = Quaternion.Euler(24f, -32f, 0f);
-        cam.transform.rotation = isoRot;
-        cam.transform.position = center - (isoRot * Vector3.forward) * 18f;
+        // Frame close near the user's favorite P3 sweet spot (~3.4f)!
+        // Previously: Mathf.Clamp(Mathf.Max(spanX * 0.28f, spanZ * 0.55f), 2.8f, 6.4f) pushed levels to 6.4f (way too far)!
+        float defaultSweetSpot = Mathf.Clamp(Mathf.Max(spanX * 0.16f, spanZ * 0.42f) + 1.15f, 3.2f, 4.0f);
 
-        EnsureFactoryBackdrop(cam, center, isoRot, customBackdropTex);
+        var rig = cam.GetComponent<GameCameraController>();
+        if (rig == null) rig = cam.gameObject.AddComponent<GameCameraController>();
+        rig.targetCamera = cam;
+        rig.SetBoardCenter(center, defaultSweetSpot);
+
+        EnsureFactoryBackdrop(cam, center, cam.transform.rotation, customBackdropTex);
     }
 
     private static void EnsureFactoryBackdrop(Camera cam, Vector3 boardCenter, Quaternion camRot, Texture2D customBackdropTex = null)

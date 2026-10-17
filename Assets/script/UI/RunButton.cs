@@ -26,11 +26,11 @@ public class RunButton : MonoBehaviour
     {
         Debug.Log("RunButton: RUN clicked!");
 
-        // Don't allow running while already running
+        // If already running, clicking resets the program to Start
         CodeExecutor executor = FindFirstObjectByType<CodeExecutor>();
         if (executor != null && executor.IsRunning())
         {
-            Debug.LogWarning("RunButton: Code is already running.");
+            UIManager.Instance?.ResetProgram();
             return;
         }
 

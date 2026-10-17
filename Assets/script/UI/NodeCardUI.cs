@@ -87,7 +87,6 @@ public class NodeCardUI : MonoBehaviour,
     {
         if (eventData.button != PointerEventData.InputButton.Left) return;
         if (UIManager.Instance == null || !UIManager.Instance.IsEditingAllowed) return;
-        if (isFixedEndpoint) return;
 
         if (rootCanvas == null)
         {
