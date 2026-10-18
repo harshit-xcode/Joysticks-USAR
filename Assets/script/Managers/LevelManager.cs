@@ -55,7 +55,9 @@ public class LevelManager : MonoBehaviour
 
     public void EnsureCampaignInitialized()
     {
-        if (campaignLevels == null || campaignLevels.Count != 7 || campaignLevels[6].title != "PROTOCOL 07 // DYNAMIC MATRIX")
+        if (campaignLevels == null
+            || campaignLevels.Count != LevelCampaignCatalog.CampaignLevelCount
+            || campaignLevels[campaignLevels.Count - 1].title != LevelCampaignCatalog.FinalLevelTitle)
         {
             campaignLevels = LevelCampaignCatalog.CreateCampaignLevels();
         }

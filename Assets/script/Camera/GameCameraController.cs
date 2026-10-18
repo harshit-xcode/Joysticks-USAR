@@ -33,6 +33,22 @@ public class GameCameraController : MonoBehaviour
     public bool userHasCustomized = false;
     public bool isTunerOpen = false;
 
+    // Matrix Weave opts in; other levels retain their existing camera behavior.
+    private bool fitLevelBounds;
+    private Bounds levelBounds;
+    public float BackdropDistance => fitLevelBounds
+        ? Mathf.Max(32f, (isPerspective ? cameraDistance : 26f) + levelBounds.extents.magnitude + 12f)
+        : 32f;
+    private int framedPixelWidth;
+    private int framedPixelHeight;
+
+    public void SetLevelBounds(Bounds bounds, bool enabled)
+    {
+        levelBounds = bounds;
+        fitLevelBounds = enabled;
+        if (enabled) panOffset = Vector3.zero;
+    }
+
     private Vector3 lastMousePos;
     private bool isOrbiting = false;
     private bool isPanning = false;
@@ -72,6 +88,9 @@ public class GameCameraController : MonoBehaviour
     {
         HandleKeyboardShortcuts();
         HandleViewportMouseInput();
+        if (fitLevelBounds && targetCamera != null &&
+            (targetCamera.pixelWidth != framedPixelWidth || targetCamera.pixelHeight != framedPixelHeight))
+            ApplyCameraSettings();
     }
 
     private void HandleKeyboardShortcuts()
@@ -321,7 +340,36 @@ public class GameCameraController : MonoBehaviour
 
         float dist = isPerspective ? cameraDistance : 26f;
         Vector3 target = boardCenter + panOffset;
+        if (fitLevelBounds && !isPerspective)
+        {
+            // Fit the full platform envelope (including pillars and exit arch), not only tile centers.
+            // Reserve the top22% for the title/controls,6% below and4.5% at the sides.
+            const float topInset = 0.22f, bottomInset = 0.06f, sideInset = 0.045f;
+            float minX = float.PositiveInfinity, minY = float.PositiveInfinity;
+            float maxX = float.NegativeInfinity, maxY = float.NegativeInfinity;
+            Quaternion inverseRotation = Quaternion.Inverse(rot);
+            Vector3 lo = levelBounds.min, hi = levelBounds.max;
+            foreach (float x in new[] { lo.x, hi.x })
+            foreach (float y in new[] { lo.y, hi.y })
+            foreach (float z in new[] { lo.z, hi.z })
+            {
+                Vector3 projected = inverseRotation * (new Vector3(x, y, z) - target);
+                minX = Mathf.Min(minX, projected.x); maxX = Mathf.Max(maxX, projected.x);
+                minY = Mathf.Min(minY, projected.y); maxY = Mathf.Max(maxY, projected.y);
+            }
+            float usableHeight = 1f - topInset - bottomInset;
+            float usableWidth = 1f - sideInset * 2f;
+            float needed = Mathf.Max((maxY - minY) / (2f * usableHeight),
+                (maxX - minX) / (2f * Mathf.Max(0.1f, targetCamera.aspect) * usableWidth));
+            orthoSize = Mathf.Max(orthoSize, needed * 1.04f);
+            targetCamera.orthographicSize = orthoSize;
+            // Place the board below the header while centering its projected geometry horizontally.
+            target += rot * new Vector3((minX + maxX) * 0.5f,
+                (minY + maxY) * 0.5f + orthoSize * (topInset - bottomInset), 0f);
+        }
         targetCamera.transform.position = target - (rot * Vector3.forward) * dist;
+        framedPixelWidth = targetCamera.pixelWidth;
+        framedPixelHeight = targetCamera.pixelHeight;
 
         UpdateBackdropQuad();
     }
@@ -336,10 +384,10 @@ public class GameCameraController : MonoBehaviour
 
         float h = (!isPerspective)
             ? targetCamera.orthographicSize * 2.2f
-            : 2f * Mathf.Tan(targetCamera.fieldOfView * 0.5f * Mathf.Deg2Rad) * 32f;
-        float w = h * 3.6f;
+            : 2f * Mathf.Tan(targetCamera.fieldOfView * 0.5f * Mathf.Deg2Rad) * BackdropDistance;
+        float w = h * Mathf.Max(3.6f, targetCamera.aspect * 1.05f);
 
-        backdropQuad.localPosition = new Vector3(0f, 0f, 32f);
+        backdropQuad.localPosition = new Vector3(0f, 0f, BackdropDistance);
         backdropQuad.localRotation = Quaternion.identity;
         backdropQuad.localScale = new Vector3(w, h, 1f);
     }

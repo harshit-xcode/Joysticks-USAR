@@ -1,5 +1,5 @@
 // LevelDefinition.cs
-// Data-driven level configuration and 5-level puzzle campaign catalog.
+// Data-driven level configuration and 9-level puzzle campaign catalog.
 // Built around true 2-tile JUMP (vaulting from tile X to X+2 over X+1) and Obstacle Asymmetry.
 
 using System;
@@ -19,18 +19,32 @@ public struct NodeLoadoutItem
     }
 }
 
+// Purely visual role highlight drawn on a tile (rim color + floor symbol). Does not change gameplay.
+public enum TileAccent
+{
+    None = 0,
+    Start = 1,   // Cyan rim
+    Walk = 2,    // Cyan rim + forward (+X) arrow
+    Gate = 3,    // Amber rim
+    Rotate = 4,  // Purple rim + clockwise arrow
+    Jump = 5,    // Yellow rim + jump arc
+    End = 6      // Cyan rim + cyan goal pad
+}
+
 [Serializable]
 public struct TileCellData
 {
     public Vector2Int coord;
     public TileType type;
     public bool hasObstacle;
+    public TileAccent accent;
 
-    public TileCellData(int x, int y, TileType type, bool hasObstacle = false)
+    public TileCellData(int x, int y, TileType type, bool hasObstacle = false, TileAccent accent = TileAccent.None)
     {
         this.coord = new Vector2Int(x, y);
         this.type = type;
         this.hasObstacle = hasObstacle;
+        this.accent = accent;
     }
 }
 
@@ -42,10 +56,15 @@ public class LevelDefinition
     public string objectiveHint = "DRAG [WALK] TO THE BOARD & MANUALLY WIRE START -> WALK -> LOOP";
     public List<NodeLoadoutItem> unlockedNodes = new List<NodeLoadoutItem>();
     public List<TileCellData> cells = new List<TileCellData>();
+    public bool fitCameraToBoard = false;
 }
 
 public static class LevelCampaignCatalog
 {
+    // Keep in sync with CreateCampaignLevels(): used to detect stale serialized campaigns and size the P1..Pn selector.
+    public const int CampaignLevelCount = 9;
+    public const string FinalLevelTitle = "PROTOCOL 09 // MATRIX WEAVE";
+
     public static List<LevelDefinition> CreateDefault7Levels()
     {
         return CreateCampaignLevels();
@@ -342,6 +361,82 @@ public static class LevelCampaignCatalog
         lvl7.cells.Add(new TileCellData(10, 2, TileType.End));
         lvl7.cells.Add(new TileCellData(10, 3, TileType.Free));
         levels.Add(lvl7);
+
+        // =====================================================================
+        // LEVEL 8: PROTOCOL 08 // ROTATION RUN
+        // Eight tiles with role highlights and symbols, no text (numbers are tile IDs from the design sheet, not grid indices):
+        //   [7 START]-[8 WALK]-[9 GATE]-[10 ROTATE]
+        //                                   |
+        //                              [16 WALK]-[17 WALK]-[18 SPIKES]-[19 END]
+        // Movement is grid-absolute (WALK = +X, LEFT = +Z): the robot leaves 10 for 16 with [LEFT]
+        // and [WALK]s to 17. Tile 18 is a static spike (Lava) tile, so the robot must [JUMP] from 17 over it onto 19.
+        // Verified loop: START -> WALK -> PULSE -> JUMP -> LEFT -> LOOP
+        //   Pass 1: W (0,0)->(1,0), P opens gate 9, J vaults the open gate (1,0)->(3,0), L -> (3,1).
+        //   Pass 2: W -> (4,1), P closes gate (robot is past it), J vaults spikes (4,1)->(6,1) END.
+        // The previous all-WALK route (W -> P -> W -> L) now steps onto the spikes and respawns.
+        // =====================================================================
+        var lvl8 = new LevelDefinition
+        {
+            levelIndex = 8,
+            title = "PROTOCOL 08 // ROTATION RUN",
+            objectiveHint = "[PULSE] OPENS THE LASER GATE. [LEFT] SWITCHES LANES — THEN [JUMP] THE SPIKES TO REACH THE EXIT!"
+        };
+        lvl8.unlockedNodes.Add(new NodeLoadoutItem(BlockType.Walk, 2));      // 2x WALK
+        lvl8.unlockedNodes.Add(new NodeLoadoutItem(BlockType.Wait, 1));      // 1x PULSE
+        lvl8.unlockedNodes.Add(new NodeLoadoutItem(BlockType.MoveLeft, 1));  // 1x LEFT
+        lvl8.unlockedNodes.Add(new NodeLoadoutItem(BlockType.Lava, 1));      // 1x JUMP
+
+        lvl8.cells.Add(new TileCellData(0, 0, TileType.Start, false, TileAccent.Start));      // 7  START
+        lvl8.cells.Add(new TileCellData(1, 0, TileType.Free, false, TileAccent.Walk));        // 8  WALK
+        lvl8.cells.Add(new TileCellData(2, 0, TileType.PhaseGateClosed, true, TileAccent.Gate)); // 9  GATE (opened by PULSE)
+        lvl8.cells.Add(new TileCellData(3, 0, TileType.Free, false, TileAccent.Rotate));      // 10 ROTATE
+        lvl8.cells.Add(new TileCellData(3, 1, TileType.Free, false, TileAccent.Walk));        // 16 WALK
+        lvl8.cells.Add(new TileCellData(4, 1, TileType.Free, false, TileAccent.Walk));        // 17 WALK
+        lvl8.cells.Add(new TileCellData(5, 1, TileType.Lava));                                // 18 SPIKES (jump over from 17)
+        lvl8.cells.Add(new TileCellData(6, 1, TileType.End, false, TileAccent.End));          // 19 END
+        levels.Add(lvl8);
+
+        // LEVEL 9: Matrix Weave combines the arena walls/gates with Rotation Run's lane switches.
+        // Eight existing commands repeat over three five-column sectors. LEFT is +Z; RIGHT is -Z.
+        // W -> P -> W -> L -> P -> W -> J -> R: the second pulse resets every gate for the next pass.
+        // Jump lands on PhaseSpikeDown at zero-based beats 6,14,22 (safe even beats), then RIGHT leaves.
+        var lvl9 = new LevelDefinition
+        {
+            levelIndex = 9,
+            title = FinalLevelTitle,
+            objectiveHint = "WEAVE THREE SECTORS! PULSE THROUGH GATES, SWITCH LANES & JUMP THE SPIKES. RESET THE GATE PHASE EACH LOOP.",
+            fitCameraToBoard = true
+        };
+        lvl9.unlockedNodes.Add(new NodeLoadoutItem(BlockType.Walk, 3));
+        lvl9.unlockedNodes.Add(new NodeLoadoutItem(BlockType.Wait, 2)); // Existing PULSE, not a new WAIT action.
+        lvl9.unlockedNodes.Add(new NodeLoadoutItem(BlockType.MoveLeft, 1));
+        lvl9.unlockedNodes.Add(new NodeLoadoutItem(BlockType.Lava, 1)); // Existing JUMP.
+        lvl9.unlockedNodes.Add(new NodeLoadoutItem(BlockType.MoveRight, 1));
+
+        for (int x = 0; x <= 15; x++)
+        {
+            int local = x % 5;
+            TileType lower = x == 0 ? TileType.Start
+                : x == 15 ? TileType.End
+                : local == 2 ? TileType.PhaseGateClosed
+                : local == 3 ? TileType.Obstacle
+                : local == 4 ? TileType.Lava : TileType.Free;
+            TileAccent lowerAccent = x == 0 ? TileAccent.Start
+                : x == 15 ? TileAccent.End
+                : local == 2 ? TileAccent.Gate
+                : local == 1 ? TileAccent.Walk
+                : local == 0 ? TileAccent.Start : TileAccent.None;
+            lvl9.cells.Add(new TileCellData(x, 0, lower,
+                lower == TileType.Obstacle || lower == TileType.PhaseGateClosed, lowerAccent));
+
+            TileType upper = x == 0 ? TileType.Obstacle
+                : local == 0 ? TileType.PhaseSpikeDown
+                : local == 1 || local == 4 ? TileType.Lava : TileType.Free;
+            TileAccent upperAccent = local == 3 ? TileAccent.Jump
+                : local == 2 ? TileAccent.Walk : TileAccent.None;
+            lvl9.cells.Add(new TileCellData(x, 1, upper, upper == TileType.Obstacle, upperAccent));
+        }
+        levels.Add(lvl9);
 
         return levels;
     }

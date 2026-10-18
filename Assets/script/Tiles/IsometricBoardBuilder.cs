@@ -290,7 +290,102 @@ public static class IsometricBoardBuilder
                 CreateBox(obsRoot.transform, "HazardStripeBot", new Vector3(0f, 0.35f, 0f), new Vector3(1.42f, 0.14f, 1.42f), obstacleWarn);
                 tileComp.obstacleVisual = obsRoot;
             }
+
+            AddRoleAccent(tileObj.transform, cell, showWalkArrow: level.levelIndex != 8);
         }
+    }
+
+    // Visual-only role highlight: colored deck rim plus an optional floor symbol (no gameplay effect).
+    private static void AddRoleAccent(Transform tile, TileCellData cell, bool showWalkArrow)
+    {
+        if (cell.accent == TileAccent.None) return;
+
+        Color rimColor;
+        switch (cell.accent)
+        {
+            case TileAccent.Gate: rimColor = new Color(1.00f, 0.36f, 0.04f); break;
+            case TileAccent.Rotate: rimColor = new Color(0.72f, 0.28f, 1.00f); break;
+            case TileAccent.Jump: rimColor = new Color(1.00f, 0.84f, 0.12f); break;
+            default: rimColor = new Color(0.15f, 0.85f, 1.00f); break;
+        }
+        Material rim = GetOrCreateMaterial("AccentRim", rimColor, true, 0.7f);
+
+        GameObject root = new GameObject("RoleAccent");
+        root.transform.SetParent(tile, false);
+        CreateBox(root.transform, "RimN", new Vector3(0f, 0.075f, 0.79f), new Vector3(1.66f, 0.04f, 0.07f), rim);
+        CreateBox(root.transform, "RimS", new Vector3(0f, 0.075f, -0.79f), new Vector3(1.66f, 0.04f, 0.07f), rim);
+        CreateBox(root.transform, "RimE", new Vector3(0.79f, 0.075f, 0f), new Vector3(0.07f, 0.04f, 1.52f), rim);
+        CreateBox(root.transform, "RimW", new Vector3(-0.79f, 0.075f, 0f), new Vector3(0.07f, 0.04f, 1.52f), rim);
+
+        switch (cell.accent)
+        {
+            case TileAccent.Walk:
+            {
+                // L8 keeps its cyan walk-tile rims without direction arrows.
+                if (!showWalkArrow) break;
+
+                // Forward (+X) arrow, matching the WALK command direction
+                CreateBox(root.transform, "ArrowShaft", new Vector3(-0.12f, 0.08f, 0f), new Vector3(0.56f, 0.03f, 0.12f), rim);
+                var h1 = CreateBox(root.transform, "ArrowHeadA", new Vector3(0.20f, 0.08f, 0.10f), new Vector3(0.34f, 0.03f, 0.11f), rim);
+                h1.transform.localRotation = Quaternion.Euler(0f, 45f, 0f);
+                var h2 = CreateBox(root.transform, "ArrowHeadB", new Vector3(0.20f, 0.08f, -0.10f), new Vector3(0.34f, 0.03f, 0.11f), rim);
+                h2.transform.localRotation = Quaternion.Euler(0f, -45f, 0f);
+                break;
+            }
+            case TileAccent.Rotate:
+            {
+                // Clockwise (seen from above) 270-degree arc with an arrowhead at its end
+                const float radius = 0.42f;
+                const int segs = 10;
+                float startDeg = 135f, endDeg = -135f;
+                for (int i = 0; i < segs; i++)
+                {
+                    float midDeg = Mathf.Lerp(startDeg, endDeg, (i + 0.5f) / segs);
+                    float rad = midDeg * Mathf.Deg2Rad;
+                    var seg = CreateBox(root.transform, $"ArcSeg_{i}", new Vector3(Mathf.Cos(rad) * radius, 0.08f, Mathf.Sin(rad) * radius),
+                        new Vector3(0.11f, 0.03f, 2f * Mathf.PI * radius * 0.75f / segs + 0.02f), rim);
+                    seg.transform.localRotation = Quaternion.Euler(0f, -midDeg, 0f);
+                }
+                float endRad = endDeg * Mathf.Deg2Rad;
+                Vector3 tip = new Vector3(Mathf.Cos(endRad) * radius, 0.08f, Mathf.Sin(endRad) * radius);
+                Vector3 travel = new Vector3(Mathf.Sin(endRad), 0f, -Mathf.Cos(endRad)); // tangent for decreasing angle
+                float travelYaw = Mathf.Atan2(travel.x, travel.z) * Mathf.Rad2Deg;
+                var hA = CreateBox(root.transform, "ArcHeadA", tip - Quaternion.Euler(0f, travelYaw + 35f, 0f) * Vector3.forward * 0.12f, new Vector3(0.10f, 0.03f, 0.28f), rim);
+                hA.transform.localRotation = Quaternion.Euler(0f, travelYaw + 35f, 0f);
+                var hB = CreateBox(root.transform, "ArcHeadB", tip - Quaternion.Euler(0f, travelYaw - 35f, 0f) * Vector3.forward * 0.12f, new Vector3(0.10f, 0.03f, 0.28f), rim);
+                hB.transform.localRotation = Quaternion.Euler(0f, travelYaw - 35f, 0f);
+                break;
+            }
+            case TileAccent.Jump:
+            {
+                // Flat jump arc (take-off -> landing along +X) with a landing dot, drawn on the deck
+                const int segs = 8;
+                for (int i = 0; i < segs; i++)
+                {
+                    Vector3 a = JumpArcPoint(i / (float)segs);
+                    Vector3 b = JumpArcPoint((i + 1) / (float)segs);
+                    Vector3 d = b - a;
+                    var seg = CreateBox(root.transform, $"JumpArc_{i}", (a + b) * 0.5f, new Vector3(0.10f, 0.03f, d.magnitude + 0.03f), rim);
+                    seg.transform.localRotation = Quaternion.Euler(0f, Mathf.Atan2(d.x, d.z) * Mathf.Rad2Deg, 0f);
+                }
+                CreateBox(root.transform, "JumpLanding", JumpArcPoint(1f) + new Vector3(0.02f, 0f, -0.08f), new Vector3(0.16f, 0.03f, 0.16f), rim);
+                break;
+            }
+            case TileAccent.End:
+            {
+                Transform pad = tile.Find("GoalPad");
+                if (pad != null) pad.GetComponent<Renderer>().sharedMaterial = rim;
+                break;
+            }
+        }
+    }
+
+    // Arc in the deck plane: x runs take-off -> landing, z is the "height" of the jump as seen from above.
+    private static Vector3 JumpArcPoint(float t)
+    {
+        float x = Mathf.Lerp(-0.48f, 0.48f, t);
+        float u = (t - 0.5f) * 2f;
+        return new Vector3(x, 0.08f, -0.22f + 0.48f * (1f - u * u));
     }
 
     public static void StyleRobot(PlayerController player, GameObject customRobotPrefab = null)
@@ -370,6 +465,10 @@ public static class IsometricBoardBuilder
         var rig = cam.GetComponent<GameCameraController>();
         if (rig == null) rig = cam.gameObject.AddComponent<GameCameraController>();
         rig.targetCamera = cam;
+        // Full platform/robot envelope: deck edges, pillar bottoms and the tallest exit ornament.
+        var levelBounds = new Bounds(new Vector3((minX + maxX) * 0.5f, 0f, (minZ + maxZ) * 0.5f),
+            new Vector3(maxX - minX + 2f, 5f, maxZ - minZ + 2f));
+        rig.SetLevelBounds(levelBounds, level.fitCameraToBoard);
         rig.SetBoardCenter(center, defaultSweetSpot);
 
         EnsureFactoryBackdrop(cam, center, cam.transform.rotation, customBackdropTex);
@@ -388,8 +487,10 @@ public static class IsometricBoardBuilder
         }
 
         float h = cam.orthographicSize * 2.15f;
-        float w = h * 3.4f;
-        existing.localPosition = new Vector3(0f, 0f, 32f);
+        float w = h * Mathf.Max(3.4f, cam.aspect * 1.05f);
+        var rig = cam.GetComponent<GameCameraController>();
+        float backdropDistance = rig != null ? rig.BackdropDistance : 32f;
+        existing.localPosition = new Vector3(0f, 0f, backdropDistance);
         existing.localRotation = Quaternion.identity;
         existing.localScale = new Vector3(w, h, 1f);
 

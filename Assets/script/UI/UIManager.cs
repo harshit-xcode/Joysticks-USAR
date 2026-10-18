@@ -54,8 +54,6 @@ public class UIManager : MonoBehaviour
     private Canvas mainCanvas;
     private RectTransform rootUiRect;
     private RectTransform topHudPanel;
-    private TextMeshProUGUI levelTitleLabel;
-    private TextMeshProUGUI objectiveHintLabel;
     private TextMeshProUGUI statusBannerLabel;
     private TextMeshProUGUI muteBtnLabel;
     private readonly List<Image> levelPillImages = new List<Image>();
@@ -269,46 +267,19 @@ public class UIManager : MonoBehaviour
         topHudPanel.offsetMin = Vector2.zero;
         topHudPanel.offsetMax = Vector2.zero;
 
-        // Top-Left Title Banner
-        GameObject titleBg = CreateUiObject("HeaderBanner", topHudPanel);
-        var titleBgRect = titleBg.GetComponent<RectTransform>();
-        titleBgRect.anchorMin = new Vector2(0f, 1f);
-        titleBgRect.anchorMax = new Vector2(0f, 1f);
-        titleBgRect.pivot = new Vector2(0f, 1f);
-        titleBgRect.anchoredPosition = new Vector2(22f, -14f);
-        titleBgRect.sizeDelta = new Vector2(820f, 68f);
+        // Keep the gameplay viewport free of the level title/instruction banner.
 
-        levelTitleLabel = CreateStyledText(
-            titleBgRect,
-            "LevelTitle",
-            "PROTOCOL 01 // CLOSED LOOP",
-            27f,
-            new Color(0.00f, 0.90f, 1.00f, 1f),
-            TextAlignmentOptions.TopLeft);
-        levelTitleLabel.rectTransform.offsetMin = new Vector2(0f, 24f);
-        levelTitleLabel.outlineWidth = 0.28f;
-        levelTitleLabel.outlineColor = new Color32(6, 10, 18, 255);
-
-        objectiveHintLabel = CreateStyledText(
-            titleBgRect,
-            "ObjectiveHint",
-            "DRAG [WALK] TO THE CIRCUIT BOARD, THEN DRAG PORTS TO WIRE: START -> WALK -> LOOP",
-            14.5f,
-            new Color(0.86f, 0.92f, 0.98f, 0.94f),
-            TextAlignmentOptions.BottomLeft);
-        objectiveHintLabel.rectTransform.offsetMax = new Vector2(0f, -34f);
-
-        // Top-Right Level Selector Bar (P1..P7 + Cam Tuner + Mute)
+        // Top-Right Level Selector Bar (P1..P8 + Cam Tuner + Mute)
         GameObject rightBar = CreateUiObject("TopRightControls", topHudPanel);
         var rbRect = rightBar.GetComponent<RectTransform>();
         rbRect.anchorMin = new Vector2(1f, 1f);
         rbRect.anchorMax = new Vector2(1f, 1f);
         rbRect.pivot = new Vector2(1f, 1f);
         rbRect.anchoredPosition = new Vector2(-20f, -14f);
-        rbRect.sizeDelta = new Vector2(580f, 40f);
+        rbRect.sizeDelta = new Vector2(Mathf.Max(580f, LevelCampaignCatalog.CampaignLevelCount * 44f + 238f), 40f);
 
         levelPillImages.Clear();
-        for (int i = 0; i < 7; i++)
+        for (int i = 0; i < LevelCampaignCatalog.CampaignLevelCount; i++)
         {
             int levelIdx = i;
             GameObject pill = CreateUiObject($"LevelBtn_{i + 1}", rbRect, true, true);
@@ -675,16 +646,11 @@ public class UIManager : MonoBehaviour
         victoryOverlay.SetActive(false);
     }
 
-    // Configures the UI for a specific LevelDefinition (Level 1..7)
+    // Configures the UI for a specific LevelDefinition (Level 1..8)
     public void ConfigureForLevel(LevelDefinition level, int levelIdx, int totalLevels)
     {
-        if (rootUiRect == null || levelPillImages.Count != 7) EnsureSplitScreenNodeLabUI();
+        if (rootUiRect == null || levelPillImages.Count != LevelCampaignCatalog.CampaignLevelCount) EnsureSplitScreenNodeLabUI();
         HideVictoryBanner();
-
-        if (levelTitleLabel != null)
-            levelTitleLabel.text = level != null ? level.title : $"PROTOCOL 0{levelIdx + 1}";
-        if (objectiveHintLabel != null)
-            objectiveHintLabel.text = level != null ? level.objectiveHint : "";
 
         for (int i = 0; i < levelPillImages.Count; i++)
         {

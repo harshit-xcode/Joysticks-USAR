@@ -40,6 +40,19 @@ public static class CommandPanelRepair
     [MenuItem("Tools/Joysticks/Preview Level 7 (Dynamic Matrix - Grand Finale)")]
     public static void PreviewL7() => SetupActiveSceneForLevel(6);
 
+    [MenuItem("Tools/Joysticks/Preview Level 8 (Rotation Run)")]
+    public static void PreviewL8() => SetupActiveSceneForLevel(7);
+
+    [MenuItem("Tools/Joysticks/Preview Level 9 (Matrix Weave)")]
+    public static void PreviewL9() => SetupActiveSceneForLevel(8);
+
+    [MenuItem("Tools/Joysticks/Test Run Level 9 Solution (Play Mode)")]
+    public static void TestRunL9() => TestWireAndRun(8, new[]
+    {
+        BlockType.Walk, BlockType.Wait, BlockType.Walk, BlockType.MoveLeft,
+        BlockType.Wait, BlockType.Walk, BlockType.Lava, BlockType.MoveRight
+    }, true);
+
     [MenuItem("Tools/Joysticks/Test Wire Level 6 Solution Only (Play Mode)")]
     public static void TestWireL6Only() => TestWireAndRun(5, new[] { BlockType.Lava, BlockType.MoveLeft, BlockType.Wait, BlockType.Walk, BlockType.MoveRight }, false);
 
@@ -51,6 +64,9 @@ public static class CommandPanelRepair
 
     [MenuItem("Tools/Joysticks/Test Run Level 7 Solution (Play Mode)")]
     public static void TestRunL7() => TestWireAndRun(6, new[] { BlockType.Lava, BlockType.MoveLeft, BlockType.Lava, BlockType.MoveRight }, true);
+
+    [MenuItem("Tools/Joysticks/Test Run Level 8 Solution (Play Mode)")]
+    public static void TestRunL8() => TestWireAndRun(7, new[] { BlockType.Walk, BlockType.Wait, BlockType.Lava, BlockType.MoveLeft }, true);
 
 
 
