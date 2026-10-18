@@ -86,6 +86,7 @@ public class GameCameraController : MonoBehaviour
 
     private void Update()
     {
+        if (FrontScreenController.IsOpen) return;
         HandleKeyboardShortcuts();
         HandleViewportMouseInput();
         if (fitLevelBounds && targetCamera != null &&

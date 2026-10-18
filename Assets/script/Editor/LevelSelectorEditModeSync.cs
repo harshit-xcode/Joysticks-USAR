@@ -3,10 +3,8 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 
-// The Node Lab HUD seen in Edit Mode is whatever Tools/Joysticks/Setup last built.
-// When the campaign gains levels, that stale HUD keeps the old P1..Pn selector until Play Mode rebuilds it.
-// After every script reload / scene open, rebuild the Edit-Mode HUD if its level buttons no longer match the catalog.
-// The scene is not marked dirty or saved; run Tools/Joysticks/Setup to persist the HUD.
+// Older scenes may contain the former level-selector/audio HUD. Rebuild that stale
+// Edit-Mode preview after reload/open without saving or changing the preview level.
 [InitializeOnLoad]
 public static class LevelSelectorEditModeSync
 {
@@ -38,15 +36,15 @@ public static class LevelSelectorEditModeSync
         }
         if (selector == null) return; // No Edit-Mode HUD built in this scene; Play Mode builds its own.
 
-        int buttons = 0;
+        bool legacyControls = false;
         foreach (Transform child in selector)
-            if (child.name.StartsWith("LevelBtn_")) buttons++;
-        if (buttons == LevelCampaignCatalog.CampaignLevelCount) return;
+            if (child.name.StartsWith("LevelBtn_") || child.name == "MuteButton") legacyControls = true;
+        if (!legacyControls) return;
 
         levelManager.EnsureCampaignInitialized();
         ui.EnsureSplitScreenNodeLabUI();
         ui.ConfigureForLevel(levelManager.CurrentLevel, levelManager.currentLevelIndex, levelManager.campaignLevels.Count);
-        Debug.Log($"LevelSelectorEditModeSync: Edit-Mode level selector refreshed to P1..P{LevelCampaignCatalog.CampaignLevelCount}.");
+        Debug.Log("LevelSelectorEditModeSync: Removed legacy level-selector/audio controls from the Edit-Mode HUD.");
     }
 }
 #endif

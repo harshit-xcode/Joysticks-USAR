@@ -36,6 +36,7 @@ public class NodeCardUI : MonoBehaviour,
     private GameObject dragGhost;
     private Vector2 dragPointerOffset;
     private bool isDraggingCard;
+    public bool IsFailureHighlighted { get; private set; }
 
     private void Awake()
     {
@@ -46,8 +47,12 @@ public class NodeCardUI : MonoBehaviour,
 
     public void SetExecutionHighlight(bool active)
     {
+        IsFailureHighlighted = false;
         if (highlightBorder != null)
+        {
             highlightBorder.enabled = active;
+            highlightBorder.color = new Color(0.35f, 1.0f, 0.72f, 0.90f);
+        }
         if (ledIndicator != null)
         {
             ledIndicator.color = active
@@ -56,6 +61,15 @@ public class NodeCardUI : MonoBehaviour,
         }
         if (rectTransform != null)
             rectTransform.localScale = active ? new Vector3(1.06f, 1.06f, 1f) : Vector3.one;
+    }
+
+    public void SetFailureHighlight()
+    {
+        SetExecutionHighlight(true);
+        IsFailureHighlighted = true;
+        Color red = new Color(1f, .18f, .25f, 1f);
+        if (highlightBorder != null) highlightBorder.color = red;
+        if (ledIndicator != null) ledIndicator.color = red;
     }
 
     public void OnPointerClick(PointerEventData eventData)
@@ -115,6 +129,7 @@ public class NodeCardUI : MonoBehaviour,
         }
         else
         {
+            UIManager.Instance.RecordCircuitEdit();
             transform.SetAsLastSibling();
             RectTransform parentRect = rectTransform.parent as RectTransform;
             Camera cam = rootCanvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : rootCanvas.worldCamera;

@@ -41,6 +41,7 @@ public class AudioManager : MonoBehaviour
         }
         Instance = this;
         EnsureSources();
+        GameVolume.Changed += RefreshVolumes;
     }
 
     private void Start()
@@ -49,7 +50,7 @@ public class AudioManager : MonoBehaviour
         {
             musicSource.clip = backgroundMusic;
             musicSource.loop = true;
-            musicSource.volume = isMuted ? 0f : musicVolume;
+            RefreshVolumes();
             musicSource.Play();
         }
     }
@@ -72,18 +73,29 @@ public class AudioManager : MonoBehaviour
         musicSource.playOnAwake = false;
         musicSource.loop = true;
         musicSource.spatialBlend = 0f;
-        musicSource.volume = isMuted ? 0f : musicVolume;
 
         sfxSource.playOnAwake = false;
         sfxSource.loop = false;
         sfxSource.spatialBlend = 0f;
+        RefreshVolumes();
+    }
+
+    public void RefreshVolumes()
+    {
+        if (musicSource != null) musicSource.volume = isMuted ? 0f : musicVolume * GameVolume.Music;
+        if (sfxSource != null) sfxSource.volume = isMuted ? 0f : sfxVolume * GameVolume.Sfx;
     }
 
     public void ToggleMute()
     {
         isMuted = !isMuted;
-        if (musicSource != null)
-            musicSource.volume = isMuted ? 0f : musicVolume;
+        RefreshVolumes();
+    }
+
+    private void OnDestroy()
+    {
+        GameVolume.Changed -= RefreshVolumes;
+        if (Instance == this) Instance = null;
     }
 
     public void PlaySfx(AudioClip clip, float pitch = 1f, float volumeScale = 1f)
@@ -91,7 +103,7 @@ public class AudioManager : MonoBehaviour
         if (isMuted || clip == null) return;
         EnsureSources();
         sfxSource.pitch = pitch;
-        sfxSource.PlayOneShot(clip, sfxVolume * volumeScale);
+        sfxSource.PlayOneShot(clip, volumeScale);
     }
 
     public void PlayWalk() => PlaySfx(walkSfx, Random.Range(0.95f, 1.05f), 0.85f);

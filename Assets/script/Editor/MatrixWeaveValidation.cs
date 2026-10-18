@@ -26,8 +26,8 @@ public static class MatrixWeaveValidation
         var campaign = LevelCampaignCatalog.CreateCampaignLevels();
         Check(campaign.Count == 9 && campaign.Select(l => l.title).Distinct().Count() == 9,
             "Nine distinct campaign levels");
-        Check(campaign[6].title == "PROTOCOL 07 // DYNAMIC MATRIX" &&
-              campaign[7].title == "PROTOCOL 08 // ROTATION RUN", "P7/P8 preserved");
+        Check(campaign[6].title == "L7. Circuit Maze" &&
+              campaign[7].title == "L8. Neon Detour", "L7/L8 titles");
         var level = campaign[8];
         Check(level.cells.Count == 32 && level.cells.Select(c => c.coord).Distinct().Count() == 32,
             "Two complete lanes with no duplicate cells");
