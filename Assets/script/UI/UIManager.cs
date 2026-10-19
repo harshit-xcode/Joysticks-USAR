@@ -53,7 +53,10 @@ public class UIManager : MonoBehaviour
     // Built UI hierarchy references
     private Canvas mainCanvas;
     private RectTransform rootUiRect;
+    private Transform boundSceneUiRoot;
     private RectTransform topHudPanel;
+    private TextMeshProUGUI levelTitleLabel;
+    private TextMeshProUGUI objectiveHintLabel;
     private TextMeshProUGUI statusBannerLabel;
     private TextMeshProUGUI muteBtnLabel;
     private readonly List<Image> levelPillImages = new List<Image>();
@@ -195,53 +198,252 @@ public class UIManager : MonoBehaviour
     }
 
     public void EnsureSplitScreenNodeLabUI()
+{
+    // Locate or create the main Canvas
+    if (mainCanvas == null)
     {
-        // Locate or create the main Canvas
-        if (mainCanvas == null)
+        if (programPanel != null) mainCanvas = programPanel.GetComponentInParent<Canvas>(true);
+        if (mainCanvas == null) mainCanvas = FindFirstObjectByType<Canvas>(FindObjectsInactive.Include);
+    }
+
+    if (mainCanvas == null)
+    {
+        var canvasObj = new GameObject("Canvas", typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
+        mainCanvas = canvasObj.GetComponent<Canvas>();
+    }
+
+    Transform existingRoot = mainCanvas.transform.Find("LoopLabRootUI");
+    if (existingRoot != null)
+    {
+        BindExistingSceneUI(existingRoot);
+        return;
+    }
+
+    mainCanvas.gameObject.SetActive(true);
+    mainCanvas.enabled = true;
+    mainCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
+
+    var scaler = mainCanvas.GetComponent<CanvasScaler>();
+    if (scaler == null) scaler = mainCanvas.gameObject.AddComponent<CanvasScaler>();
+    scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+    scaler.referenceResolution = new Vector2(1600f, 900f);
+    scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
+    scaler.matchWidthOrHeight = 0.5f;
+
+    if (mainCanvas.GetComponent<GraphicRaycaster>() == null)
+        mainCanvas.gameObject.AddComponent<GraphicRaycaster>();
+
+    // Hide legacy panels only when creating the replacement UI.
+    HideLegacyPanels(mainCanvas.transform);
+
+    // Otherwise, build programmatically if it doesn't exist yet:
+    GameObject rootObj = CreateUiObject("LoopLabRootUI", mainCanvas.transform);
+    rootUiRect = rootObj.GetComponent<RectTransform>();
+    StretchFull(rootUiRect);
+
+    BuildTopSceneOverlay(rootUiRect);
+    BuildBottomNodeEditor(rootUiRect);
+    BuildCenterDividerControls(rootUiRect);
+    BuildVictoryModal(rootUiRect);
+}
+
+    private void BindExistingSceneUI(Transform existingRoot)
+    {
+        rootUiRect = existingRoot.GetComponent<RectTransform>();
+        topHudPanel = existingRoot.Find("TopSceneOverlay") as RectTransform;
+        levelTitleLabel = FindSceneComponent<TextMeshProUGUI>(existingRoot, "TopSceneOverlay/HeaderBanner/LevelTitle");
+        objectiveHintLabel = FindSceneComponent<TextMeshProUGUI>(existingRoot, "TopSceneOverlay/HeaderBanner/ObjectiveHint");
+        muteBtnLabel = FindSceneComponent<TextMeshProUGUI>(existingRoot, "TopSceneOverlay/TopRightControls/MuteButton/MuteLbl");
+        levelPillImages.Clear();
+
+        Transform topRightControls = existingRoot.Find("TopSceneOverlay/TopRightControls");
+        if (topRightControls != null)
         {
-            if (programPanel != null) mainCanvas = programPanel.GetComponentInParent<Canvas>(true);
-            if (mainCanvas == null) mainCanvas = FindFirstObjectByType<Canvas>(FindObjectsInactive.Include);
+            for (int i = 0; i < 7; i++)
+            {
+                Transform levelButton = topRightControls.Find($"LevelBtn_{i + 1}");
+                Image image = levelButton != null ? levelButton.GetComponent<Image>() : null;
+                levelPillImages.Add(image);
+                if (levelButton == null) continue;
+
+                if (boundSceneUiRoot != existingRoot)
+                {
+                    Button button = levelButton.GetComponent<Button>();
+                    if (button != null)
+                    {
+                        int levelIndex = i;
+                        button.onClick.AddListener(() =>
+                        {
+                            if (LevelManager.Instance != null)
+                                LevelManager.Instance.LoadCampaignLevel(levelIndex, true);
+                        });
+                    }
+                }
+            }
+
+            Transform muteButton = topRightControls.Find("MuteButton");
+            if (boundSceneUiRoot != existingRoot && muteButton != null)
+            {
+                Button button = muteButton.GetComponent<Button>();
+                if (button != null)
+                {
+                    button.onClick.AddListener(() =>
+                    {
+                        if (AudioManager.Instance != null)
+                        {
+                            AudioManager.Instance.ToggleMute();
+                            if (muteBtnLabel != null)
+                                muteBtnLabel.text = AudioManager.Instance.isMuted ? "AUDIO: OFF" : "AUDIO: ON";
+                        }
+                    });
+                }
+            }
         }
 
-        if (mainCanvas == null)
+        bottomSplitRoot = existingRoot.Find("BottomNodeWorkspace") as RectTransform;
+        paletteContainer = FindSceneRect(existingRoot, "BottomNodeWorkspace/NodeModifiersPanel/PaletteCardsArea");
+        Transform labPanel = existingRoot.Find("BottomNodeWorkspace/MachineLearningLabPanel");
+        labGridContainer = labPanel as RectTransform;
+        statusBannerLabel = FindSceneComponent<TextMeshProUGUI>(existingRoot, "BottomNodeWorkspace/MachineLearningLabPanel/StatusReadout");
+        nodesLayer = FindSceneRect(existingRoot, "BottomNodeWorkspace/MachineLearningLabPanel/GraphNodesLayer");
+
+        Transform wireLayer = existingRoot.Find("BottomNodeWorkspace/MachineLearningLabPanel/WireConnectionLayer");
+        wireConnector = wireLayer != null ? wireLayer.GetComponent<UILineConnector>() : null;
+        if (wireConnector == null && wireLayer != null)
+            wireConnector = wireLayer.gameObject.AddComponent<UILineConnector>();
+        if (wireConnector == null && labPanel != null)
+            wireConnector = labPanel.GetComponentInChildren<UILineConnector>(true);
+        if (wireConnector != null) wireConnector.raycastTarget = false;
+
+        if (nodesLayer != null)
         {
-            var canvasObj = new GameObject("Canvas", typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
-            mainCanvas = canvasObj.GetComponent<Canvas>();
+            Transform startTransform = nodesLayer.Find("Node_Start");
+            Transform endTransform = nodesLayer.Find("Node_Stop");
+            if (startTransform != null)
+            {
+                startNodeCard = startTransform.GetComponent<NodeCardUI>();
+                if (startNodeCard == null) startNodeCard = startTransform.gameObject.AddComponent<NodeCardUI>();
+                startNodeCard.blockType = BlockType.Start;
+                startNodeCard.isPaletteCard = false;
+                startNodeCard.isFixedEndpoint = true;
+                BindNodeCardComponents(startNodeCard);
+            }
+            if (endTransform != null)
+            {
+                endNodeCard = endTransform.GetComponent<NodeCardUI>();
+                if (endNodeCard == null) endNodeCard = endTransform.gameObject.AddComponent<NodeCardUI>();
+                endNodeCard.blockType = BlockType.Stop;
+                endNodeCard.isPaletteCard = false;
+                endNodeCard.isFixedEndpoint = true;
+                BindNodeCardComponents(endNodeCard);
+            }
+
+            graphNodes.Clear();
+            foreach (NodeCardUI card in nodesLayer.GetComponentsInChildren<NodeCardUI>(true))
+            {
+                if (card == startNodeCard || card == endNodeCard) continue;
+                card.isPaletteCard = false;
+                BindNodeCardComponents(card);
+                graphNodes.Add(card);
+            }
         }
 
-        mainCanvas.gameObject.SetActive(true);
-        mainCanvas.enabled = true;
-        mainCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
-
-        var scaler = mainCanvas.GetComponent<CanvasScaler>();
-        if (scaler == null) scaler = mainCanvas.gameObject.AddComponent<CanvasScaler>();
-        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-        scaler.referenceResolution = new Vector2(1600f, 900f);
-        scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
-        scaler.matchWidthOrHeight = 0.5f;
-
-        if (mainCanvas.GetComponent<GraphicRaycaster>() == null)
-            mainCanvas.gameObject.AddComponent<GraphicRaycaster>();
-
-        // Hide legacy PalettePanel / SequencePanel objects cleanly without breaking references
-        HideLegacyPanels(mainCanvas.transform);
-
-        // Rebuild or bind "LoopLabRootUI"
-        Transform existingRoot = mainCanvas.transform.Find("LoopLabRootUI");
-        if (existingRoot != null)
+        paletteCards.Clear();
+        if (paletteContainer != null)
         {
-            if (Application.isPlaying) DestroyImmediate(existingRoot.gameObject);
-            else DestroyImmediate(existingRoot.gameObject);
+            NodeCardUI[] cards = paletteContainer.GetComponentsInChildren<NodeCardUI>(true);
+            for (int i = 0; i < cards.Length; i++)
+            {
+                cards[i].isPaletteCard = true;
+                if (cards[i].paletteSlotIndex < 0) cards[i].paletteSlotIndex = i;
+                BindNodeCardComponents(cards[i]);
+                paletteCards.Add(cards[i]);
+            }
         }
 
-        GameObject rootObj = CreateUiObject("LoopLabRootUI", mainCanvas.transform);
-        rootUiRect = rootObj.GetComponent<RectTransform>();
-        StretchFull(rootUiRect);
+        centerPlayBtnIcon = FindSceneComponent<Image>(existingRoot, "CenterPlayButton");
+        centerPlayStateLabel = FindSceneComponent<TextMeshProUGUI>(existingRoot, "CenterPlayButton/PlayHint");
+        Transform centerPlayButton = existingRoot.Find("CenterPlayButton");
+        if (boundSceneUiRoot != existingRoot && centerPlayButton != null)
+        {
+            Button button = centerPlayButton.GetComponent<Button>();
+            if (button != null) button.onClick.AddListener(OnCenterPlayStopClicked);
+        }
 
-        BuildTopSceneOverlay(rootUiRect);
-        BuildBottomNodeEditor(rootUiRect);
-        BuildCenterDividerControls(rootUiRect);
-        BuildVictoryModal(rootUiRect);
+        Transform resetButton = existingRoot.Find("ResetRobotBtn");
+        Transform clearButton = existingRoot.Find("ClearGraphBtn");
+        if (boundSceneUiRoot != existingRoot)
+        {
+            Button reset = resetButton != null ? resetButton.GetComponent<Button>() : null;
+            Button clear = clearButton != null ? clearButton.GetComponent<Button>() : null;
+            if (reset != null) reset.onClick.AddListener(ResetProgram);
+            if (clear != null) clear.onClick.AddListener(ClearAllSlots);
+        }
+
+        victoryOverlay = existingRoot.Find("VictoryBannerOverlay")?.gameObject;
+        victoryTitleText = FindSceneComponent<TextMeshProUGUI>(existingRoot, "VictoryBannerOverlay/VictoryTitle");
+        victorySubText = FindSceneComponent<TextMeshProUGUI>(existingRoot, "VictoryBannerOverlay/VictorySub");
+        Transform nextButton = existingRoot.Find("VictoryBannerOverlay/NextDeploymentBtn");
+        victoryNextButton = nextButton != null ? nextButton.GetComponent<Button>() : null;
+        if (boundSceneUiRoot != existingRoot && victoryNextButton != null)
+        {
+            victoryNextButton.onClick.AddListener(() =>
+            {
+                HideVictoryBanner();
+                if (LevelManager.Instance != null)
+                    LevelManager.Instance.LoadNextLevel();
+            });
+        }
+
+        boundSceneUiRoot = existingRoot;
+    }
+
+    private static T FindSceneComponent<T>(Transform root, string path) where T : Component
+    {
+        Transform target = root != null ? root.Find(path) : null;
+        return target != null ? target.GetComponent<T>() : null;
+    }
+
+    private static RectTransform FindSceneRect(Transform root, string path)
+    {
+        return FindSceneComponent<RectTransform>(root, path);
+    }
+
+    private static void BindNodeCardComponents(NodeCardUI card)
+    {
+        if (card == null) return;
+        if (card.rectTransform == null) card.rectTransform = card.transform as RectTransform;
+        if (card.cardBackground == null) card.cardBackground = card.GetComponent<Image>();
+
+        Transform highlight = card.transform.Find("HighlightGlow");
+        if (card.highlightBorder == null && highlight != null) card.highlightBorder = highlight.GetComponent<Image>();
+        Transform led = card.transform.Find("HeaderLed");
+        if (card.ledIndicator == null && led != null) card.ledIndicator = led.GetComponent<Image>();
+        Transform icon = card.transform.Find("ActionIcon");
+        if (card.actionIcon == null && icon != null) card.actionIcon = icon.GetComponent<Image>();
+        Transform title = card.transform.Find("NodeTitle");
+        if (card.titleLabel == null && title != null) card.titleLabel = title.GetComponent<TextMeshProUGUI>();
+
+        Transform input = card.transform.Find("InputPort");
+        if (input != null)
+        {
+            card.inputPortRect = input as RectTransform;
+            card.inputPortImage = input.GetComponent<Image>();
+            NodePortUI port = input.GetComponent<NodePortUI>();
+            if (port == null) port = input.gameObject.AddComponent<NodePortUI>();
+            port.ownerNode = card;
+            port.isOutputPort = false;
+        }
+        Transform output = card.transform.Find("OutputPort");
+        if (output != null)
+        {
+            card.outputPortRect = output as RectTransform;
+            card.outputPortImage = output.GetComponent<Image>();
+            NodePortUI port = output.GetComponent<NodePortUI>();
+            if (port == null) port = output.gameObject.AddComponent<NodePortUI>();
+            port.ownerNode = card;
+            port.isOutputPort = true;
+        }
     }
 
     private void HideLegacyPanels(Transform canvasTransform)
@@ -649,7 +851,7 @@ public class UIManager : MonoBehaviour
     // Configures the UI for a specific LevelDefinition (Level 1..8)
     public void ConfigureForLevel(LevelDefinition level, int levelIdx, int totalLevels)
     {
-        if (rootUiRect == null || levelPillImages.Count != LevelCampaignCatalog.CampaignLevelCount) EnsureSplitScreenNodeLabUI();
+        if (rootUiRect == null) EnsureSplitScreenNodeLabUI();
         HideVictoryBanner();
 
         for (int i = 0; i < levelPillImages.Count; i++)
