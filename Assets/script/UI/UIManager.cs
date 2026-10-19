@@ -781,11 +781,11 @@ public partial class UIManager : MonoBehaviour
         GameObject hlObj = CreateUiObject("HighlightGlow", rt, true);
         var hlRect = hlObj.GetComponent<RectTransform>();
         StretchFull(hlRect);
-        hlRect.offsetMin = new Vector2(-6f, -6f);
-        hlRect.offsetMax = new Vector2(6f, 6f);
+        hlRect.offsetMin = new Vector2(-2f, -2f);
+        hlRect.offsetMax = new Vector2(2f, 2f);
         hlObj.transform.SetAsFirstSibling();
         var hlImg = hlObj.GetComponent<Image>();
-        hlImg.color = new Color(0.35f, 1.0f, 0.72f, 0.90f);
+        hlImg.color = new Color(0.35f, 1.0f, 0.72f, 0.08f);
         hlImg.raycastTarget = false;
         hlImg.enabled = false;
         card.highlightBorder = hlImg;

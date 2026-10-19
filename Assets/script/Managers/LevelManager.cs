@@ -141,6 +141,29 @@ public class LevelManager : MonoBehaviour
         return true;
     }
 
+    // NEW GAME starts a fresh campaign. Resume never calls this method.
+    public void StartNewCampaign()
+    {
+        EnsureCampaignInitialized();
+        FindFirstObjectByType<CodeExecutor>()?.StopExecution();
+        if (uiManager == null)
+            uiManager = UIManager.Instance != null ? UIManager.Instance : FindFirstObjectByType<UIManager>();
+
+        // Stop ConfigureForLevel from saving the previous circuit back after deletion.
+        if (uiManager != null) uiManager.ClearCampaignDrafts(campaignLevels.Count);
+        else
+            for (int i = 1; i <= campaignLevels.Count; i++)
+                PlayerPrefs.DeleteKey(UIManager.CircuitDraftKeyPrefix + i);
+
+        for (int i = 1; i <= campaignLevels.Count; i++)
+            PlayerPrefs.DeleteKey(SolvedLevelKeyPrefix + i);
+        HighestUnlockedLevel = 1;
+        solvedLevels = new bool[campaignLevels.Count];
+        PlayerPrefs.SetInt(HighestUnlockedLevelKey, 1);
+        PlayerPrefs.Save();
+        LoadCampaignLevel(0, true);
+    }
+
     public void LoadCampaignLevel(int index, bool rebuildBoard = true)
     {
         EnsureCampaignInitialized();

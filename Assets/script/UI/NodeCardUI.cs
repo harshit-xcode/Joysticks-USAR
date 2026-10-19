@@ -51,7 +51,8 @@ public class NodeCardUI : MonoBehaviour,
         if (highlightBorder != null)
         {
             highlightBorder.enabled = active;
-            highlightBorder.color = new Color(0.35f, 1.0f, 0.72f, 0.90f);
+            // Subtle tint only; keep the command label and glyph readable.
+            highlightBorder.color = new Color(0.35f, 1.0f, 0.72f, 0.08f);
         }
         if (ledIndicator != null)
         {
@@ -68,7 +69,7 @@ public class NodeCardUI : MonoBehaviour,
         SetExecutionHighlight(true);
         IsFailureHighlighted = true;
         Color red = new Color(1f, .18f, .25f, 1f);
-        if (highlightBorder != null) highlightBorder.color = red;
+        if (highlightBorder != null) highlightBorder.color = new Color(red.r, red.g, red.b, .08f);
         if (ledIndicator != null) ledIndicator.color = red;
     }
 

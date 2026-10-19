@@ -19,6 +19,18 @@ public partial class UIManager
 
     private string PaletteSignature() => string.Join(",", paletteCards.Select(card => ((int)card.blockType) + ":" + card.paletteSlotIndex));
 
+    public void ClearCampaignDrafts(int levelCount)
+    {
+        // Invalidate the old view before the fresh level's ConfigureForLevel autosave.
+        displayedDraftLevel = -1;
+        displayedDraftTitle = null;
+        levelUndoHistories.Clear();
+        undoHistory.Clear();
+        for (int i = 1; i <= levelCount; i++)
+            PlayerPrefs.DeleteKey(CircuitDraftKeyPrefix + i);
+        // StartNewCampaign flushes these deletions together with the progress reset.
+    }
+
     public void SaveDisplayedLevelDraft()
     {
         if (!Application.isPlaying || displayedDraftLevel < 0 || nodesLayer == null || startNodeCard == null || endNodeCard == null) return;
