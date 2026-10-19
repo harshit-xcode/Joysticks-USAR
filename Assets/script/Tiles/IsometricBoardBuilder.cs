@@ -424,8 +424,7 @@ public static class IsometricBoardBuilder
 
         // Top half of screen is the 3D isometric scene (Y: 0.48 to 1.0)
         cam.rect = new Rect(0f, 0.48f, 1f, 0.52f);
-        cam.clearFlags = CameraClearFlags.SolidColor;
-        cam.backgroundColor = new Color(0.22f, 0.05f, 0.07f, 1f); // Deep industrial crimson-black
+        // Clear Flags / Background stay as authored on the Camera in the Inspector.
 
         // Frame close near the user's favorite P3 sweet spot (~3.4f)!
         // Previously: Mathf.Clamp(Mathf.Max(spanX * 0.28f, spanZ * 0.55f), 2.8f, 6.4f) pushed levels to 6.4f (way too far)!
@@ -440,7 +439,16 @@ public static class IsometricBoardBuilder
         rig.SetLevelBounds(levelBounds, level.fitCameraToBoard);
         rig.SetBoardCenter(center, defaultSweetSpot);
 
-        EnsureFactoryBackdrop(cam, center, cam.transform.rotation, customBackdropTex);
+        // A Skybox camera shows its sky; the factory backdrop quad would hide it.
+        if (cam.clearFlags == CameraClearFlags.Skybox)
+        {
+            Transform backdrop = cam.transform.Find("FactoryBackdropQuad");
+            if (backdrop != null) backdrop.gameObject.SetActive(false);
+        }
+        else
+        {
+            EnsureFactoryBackdrop(cam, center, cam.transform.rotation, customBackdropTex);
+        }
     }
 
     private static void EnsureFactoryBackdrop(Camera cam, Vector3 boardCenter, Quaternion camRot, Texture2D customBackdropTex = null)
@@ -454,6 +462,7 @@ public static class IsometricBoardBuilder
             quad.transform.SetParent(cam.transform, false);
             existing = quad.transform;
         }
+        existing.gameObject.SetActive(true);
 
         float h = cam.orthographicSize * 2.15f;
         float w = h * Mathf.Max(3.4f, cam.aspect * 1.05f);

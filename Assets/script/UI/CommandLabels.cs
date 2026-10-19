@@ -7,15 +7,15 @@ public static class CommandLabels
     {
         switch (type)
         {
-            case BlockType.Start:     return "START";
-            case BlockType.Walk:      return "WALK";
-            case BlockType.Lava:      return "JUMP";
-            case BlockType.Stop:      return "LOOP";
-            case BlockType.MoveLeft:  return "LEFT";
-            case BlockType.MoveRight: return "RIGHT";
-            case BlockType.Force:     return "STRIDE";
-            case BlockType.Wait:      return "PULSE";
-            default:                  return type.ToString().ToUpperInvariant();
+            case BlockType.Start:     return "Start";
+            case BlockType.Walk:      return "Walk";
+            case BlockType.Lava:      return "Jump";
+            case BlockType.Stop:      return "Loop";
+            case BlockType.MoveLeft:  return "Left";
+            case BlockType.MoveRight: return "Right";
+            case BlockType.Force:     return "Stride";
+            case BlockType.Wait:      return "Pulse";
+            default:                  return type.ToString();
         }
     }
 

@@ -39,10 +39,11 @@ public partial class UIManager
         list.anchoredPosition = new Vector2(-144f, -58f);
         list.sizeDelta = new Vector2(340f, 44f + manager.campaignLevels.Count * 36f);
         list.GetComponent<Image>().color = new Color(.055f, .09f, .14f, .98f);
-        var title = CreateStyledText(list, "ReplayTitle", "LEVELS — REPLAY / CONTINUE", 13f,
+        var title = CreateStyledText(list, "ReplayTitle", "Levels", 13f,
             new Color(.4f, .9f, 1f), TextAlignmentOptions.MidlineLeft);
         PositionReplayRow(title.rectTransform, 8f, 28f);
         title.margin = new Vector4(10, 0, 10, 0);
+        title.fontStyle = FontStyles.Bold;
 
         for (int i = 0; i < manager.campaignLevels.Count; i++)
         {
@@ -57,8 +58,8 @@ public partial class UIManager
             string name = manager.campaignLevels[index].title ?? "";
             string prefix = $"L{index + 1}. ";
             if (name.StartsWith(prefix, System.StringComparison.Ordinal)) name = name.Substring(prefix.Length);
-            string state = cleared ? "CLEARED" : canContinue ? "CONTINUE" : index == manager.currentLevelIndex ? "CURRENT" : "LOCKED";
-            var label = CreateStyledText(row.transform, "LevelLabel", $"{index + 1}. {name}   [{state}]", 13f,
+            string state = cleared ? "Cleared" : canContinue ? "Continue" : index == manager.currentLevelIndex ? "Current" : "Locked";
+            var label = CreateStyledText(row.transform, "LevelLabel", $"{index + 1}.  {name}  <color=#FFFFFF80>· {state}</color>", 13f,
                 selectable ? new Color(.8f, .96f, 1f) : new Color(.46f, .51f, .58f), TextAlignmentOptions.MidlineLeft);
             label.margin = new Vector4(10, 0, 10, 0);
             label.enableAutoSizing = true;

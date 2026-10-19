@@ -236,22 +236,25 @@ public partial class UIManager : MonoBehaviour
         // Hide legacy PalettePanel / SequencePanel objects cleanly without breaking references
         HideLegacyPanels(mainCanvas.transform);
 
-        // Rebuild or bind "LoopLabRootUI"
+        // Rebuild "LoopLabRootUI"; the scene copy is kept until its edits are applied.
         Transform existingRoot = mainCanvas.transform.Find("LoopLabRootUI");
-        if (existingRoot != null)
-        {
-            if (Application.isPlaying) DestroyImmediate(existingRoot.gameObject);
-            else DestroyImmediate(existingRoot.gameObject);
-        }
+        if (existingRoot != null) existingRoot.name = "LoopLabRootUI (scene)";
 
         GameObject rootObj = CreateUiObject("LoopLabRootUI", mainCanvas.transform);
         rootUiRect = rootObj.GetComponent<RectTransform>();
         StretchFull(rootUiRect);
+        rootObj.AddComponent<UiTextRevision>().revision = UiTextRevision.Current;
 
         BuildTopSceneOverlay(rootUiRect);
         BuildBottomNodeEditor(rootUiRect);
         BuildCenterDividerControls(rootUiRect);
         BuildVictoryModal(rootUiRect);
+
+        if (existingRoot != null)
+        {
+            ApplySceneUiLayout(existingRoot, rootUiRect);
+            DestroyImmediate(existingRoot.gameObject);
+        }
     }
 
     private void HideLegacyPanels(Transform canvasTransform)
@@ -316,7 +319,7 @@ public partial class UIManager : MonoBehaviour
         cr.sizeDelta = new Vector2(112f, -4f);
         var camImg = camBtnObj.GetComponent<Image>();
         camImg.color = new Color(0.12f, 0.22f, 0.36f, 0.95f);
-        camBtnLabel = CreateStyledText(cr, "CamLbl", "CAM: ISO", 13.5f, new Color(0.35f, 0.92f, 1f), TextAlignmentOptions.Center);
+        camBtnLabel = CreateStyledText(cr, "CamLbl", "Iso view", 13.5f, new Color(0.35f, 0.92f, 1f), TextAlignmentOptions.Center);
         var camBtn = camBtnObj.GetComponent<Button>();
         camBtn.targetGraphic = camImg;
         camBtn.onClick.AddListener(() =>
@@ -374,12 +377,11 @@ public partial class UIManager : MonoBehaviour
         var modTitle = CreateStyledText(
             mhRect,
             "ModifiersTitle",
-            "COMMAND MODULES",
-            21f,
+            "Commands",
+            19f,
             new Color(0.00f, 0.90f, 1.00f, 1f),
             TextAlignmentOptions.Center);
-        modTitle.outlineWidth = 0.24f;
-        modTitle.outlineColor = new Color32(6, 10, 18, 255);
+        modTitle.fontStyle = FontStyles.Bold;
 
         // Container for draggable palette cards
         GameObject paletteArea = CreateUiObject("PaletteCardsArea", leftRect);
@@ -393,7 +395,7 @@ public partial class UIManager : MonoBehaviour
         var footerHint = CreateStyledText(
             leftRect,
             "PaletteFooterHint",
-            "1. DRAG MODULE TO BOARD\n2. DRAG PORTS TO WIRE",
+            "Drag a command onto the board,\nthen connect its ports.",
             12f,
             new Color(0.62f, 0.76f, 0.90f, 0.88f),
             TextAlignmentOptions.Center);
@@ -430,8 +432,8 @@ public partial class UIManager : MonoBehaviour
         var labTitle = CreateStyledText(
             labGridContainer,
             "LabHeaderTitle",
-            "LOOP CIRCUIT BOARD",
-            22f,
+            "Circuit",
+            19f,
             new Color(0.92f, 0.96f, 1.00f, 1f),
             TextAlignmentOptions.TopRight);
         labTitle.rectTransform.anchorMin = new Vector2(1f, 1f);
@@ -439,14 +441,13 @@ public partial class UIManager : MonoBehaviour
         labTitle.rectTransform.pivot = new Vector2(1f, 1f);
         labTitle.rectTransform.anchoredPosition = new Vector2(-26f, -14f);
         labTitle.rectTransform.sizeDelta = new Vector2(460f, 34f);
-        labTitle.outlineWidth = 0.24f;
-        labTitle.outlineColor = new Color32(6, 10, 18, 255);
+        labTitle.fontStyle = FontStyles.Bold;
 
         // Live circuit status readout under LOOP CIRCUIT BOARD
         statusBannerLabel = CreateStyledText(
             labGridContainer,
             "StatusReadout",
-            "CIRCUIT OPEN — DRAG MODULES TO BOARD & WIRE [START] -> MODULES -> [LOOP]",
+            OpenCircuitHint,
             13.5f,
             new Color(0.98f, 0.72f, 0.24f, 0.95f),
             TextAlignmentOptions.TopRight);
@@ -516,7 +517,7 @@ public partial class UIManager : MonoBehaviour
         centerPlayStateLabel = CreateStyledText(
             playRect,
             "PlayHint",
-            "RUN LOOP",
+            "Run",
             11.5f,
             new Color(0.75f, 0.94f, 1.00f, 0.95f),
             TextAlignmentOptions.Center);
@@ -530,12 +531,12 @@ public partial class UIManager : MonoBehaviour
         // sends the robot back to START), so a half-finished run can never be resumed after editing.
 
         CreateDividerUtilityButton(parent, "UndoGraphBtn", new Vector2(-92f, 0f), new Vector2(102f, 34f),
-            "UNDO", new Color(0.10f, 0.30f, 0.38f, 0.96f), UndoLastEdit);
+            "Undo", new Color(0.10f, 0.30f, 0.38f, 0.96f), UndoLastEdit);
         undoButton = parent.Find("UndoGraphBtn").GetComponent<Button>();
 
         // Clear Board button on the right of Play (no Auto-Wire button so player wires manually!)
         CreateDividerUtilityButton(parent, "ClearGraphBtn", new Vector2(92f, 0f), new Vector2(102f, 34f),
-            "CLEAR", new Color(0.32f, 0.12f, 0.18f, 0.96f), ClearAllSlots);
+            "Clear", new Color(0.32f, 0.12f, 0.18f, 0.96f), ClearAllSlots);
     }
 
     private void CreateDividerUtilityButton(
@@ -589,10 +590,11 @@ public partial class UIManager : MonoBehaviour
         victoryTitleText = CreateStyledText(
             vr,
             "VictoryTitle",
-            "DEPLOYMENT TEST CLEARED!",
+            "Level complete",
             24f,
             new Color(0.32f, 0.98f, 0.52f, 1f),
             TextAlignmentOptions.Center);
+        victoryTitleText.fontStyle = FontStyles.Bold;
         victoryTitleText.enableAutoSizing = true;
         victoryTitleText.fontSizeMin = 16f;
         victoryTitleText.fontSizeMax = 24f;
@@ -603,7 +605,7 @@ public partial class UIManager : MonoBehaviour
         victorySubText = CreateStyledText(
             vr,
             "VictorySub",
-            "LOOP SEQUENCE VERIFIED",
+            "",
             14.5f,
             new Color(0.84f, 0.88f, 0.94f, 1f),
             TextAlignmentOptions.Center);
@@ -624,7 +626,7 @@ public partial class UIManager : MonoBehaviour
         var nbImg = nextBtnObj.GetComponent<Image>();
         nbImg.color = new Color(0.18f, 0.68f, 0.36f, 1f);
 
-        victoryNextLabel = CreateStyledText(nbr, "NextLabel", "NEXT TEST LEVEL >>", 16f, Color.white, TextAlignmentOptions.Center);
+        victoryNextLabel = CreateStyledText(nbr, "NextLabel", "Next level", 16f, Color.white, TextAlignmentOptions.Center);
 
         victoryNextButton = nextBtnObj.GetComponent<Button>();
         victoryNextButton.targetGraphic = nbImg;
@@ -641,6 +643,19 @@ public partial class UIManager : MonoBehaviour
         victoryOverlay.SetActive(false);
     }
 
+    private const string OpenCircuitHint = "Drag commands onto the board, then wire Start through them to Loop.";
+
+    private static string LoopReadyMessage(int commandCount) =>
+        $"Loop ready with {commandCount} {(commandCount == 1 ? "command" : "commands")}. Press Run.";
+
+    // Campaign titles carry an "L1. " prefix; screens that already show the number drop it.
+    public static string DisplayTitle(string title, int levelIndex)
+    {
+        string name = title ?? "";
+        string prefix = $"L{levelIndex + 1}. ";
+        return name.StartsWith(prefix, System.StringComparison.Ordinal) ? name.Substring(prefix.Length) : name;
+    }
+
     private void UpdateLevelHeading(LevelDefinition level, int levelIndex)
     {
         if (levelHeadingLabel == null) return;
@@ -649,7 +664,7 @@ public partial class UIManager : MonoBehaviour
         // Campaign titles already contain L1., L2., etc.; display the number only once.
         string prefix = $"L{number}. ";
         if (name.StartsWith(prefix, System.StringComparison.Ordinal)) name = name.Substring(prefix.Length);
-        levelHeadingLabel.text = string.IsNullOrWhiteSpace(name) ? $"LEVEL {number}" : $"LEVEL {number} — {name}";
+        levelHeadingLabel.text = string.IsNullOrWhiteSpace(name) ? $"Level {number}" : $"Level {number}  ·  {name}";
         levelHeadingLabel.text += "  ▼";
         float width = Mathf.Clamp(levelHeadingLabel.GetPreferredValues(levelHeadingLabel.text, 10000f, 36f).x + 20f, 120f, 320f);
         ((RectTransform)levelHeadingLabel.transform.parent).sizeDelta = new Vector2(width, 36f);
@@ -704,7 +719,7 @@ public partial class UIManager : MonoBehaviour
         commands.Clear();
         RefreshWires();
         UpdatePlayButtonVisual(false);
-        SetStatusBanner("CIRCUIT OPEN — DRAG MODULES TO BOARD & DRAG PORTS TO WIRE [START] -> [LOOP]");
+        SetStatusBanner(OpenCircuitHint);
         RestoreLevelDraft(level, levelIdx);
         UpdateCameraTunerReadout();
     }
@@ -796,19 +811,6 @@ public partial class UIManager : MonoBehaviour
         bgImg.color = Color.white;
         card.cardBackground = bgImg;
 
-        // Top-Left Glowing Telemetry LED Pill inside Header Bar
-        GameObject ledObj = CreateUiObject("HeaderLed", rt, true);
-        var ledRect = ledObj.GetComponent<RectTransform>();
-        ledRect.anchorMin = ledRect.anchorMax = new Vector2(0f, 1f);
-        ledRect.pivot = new Vector2(0f, 0.5f);
-        ledRect.anchoredPosition = new Vector2(14f, -17f);
-        ledRect.sizeDelta = new Vector2(22f, 8f);
-        var ledImg = ledObj.GetComponent<Image>();
-        if (ledPillSprite != null) ledImg.sprite = ledPillSprite;
-        ledImg.color = accentCol;
-        ledImg.raycastTarget = false;
-        card.ledIndicator = ledImg;
-
         // Top-Right Module Name Label ("START", "WALK", "JUMP", "LEFT", "RIGHT", "LOOP")
         var titleTxt = CreateStyledText(
             rt,
@@ -822,6 +824,7 @@ public partial class UIManager : MonoBehaviour
         titleTxt.rectTransform.pivot = new Vector2(0.5f, 1f);
         titleTxt.rectTransform.anchoredPosition = new Vector2(-2f, -9f);
         titleTxt.rectTransform.sizeDelta = new Vector2(-26f, 18f);
+        titleTxt.fontStyle = FontStyles.Bold;
         card.titleLabel = titleTxt;
 
         // Center Recessed Action Glyph
@@ -837,20 +840,6 @@ public partial class UIManager : MonoBehaviour
         iconImg.preserveAspect = true;
         iconImg.raycastTarget = false;
         card.actionIcon = iconImg;
-
-        // Bottom Telemetry Sub-Badge ("+1 TILE", "SKIP 1", "SIDE L", "SIDE R", "EMITTER", "REPEAT")
-        var subBadgeTxt = CreateStyledText(
-            rt,
-            "SubBadge",
-            CommandLabels.SubBadgeFor(type),
-            9.5f,
-            new Color(0.76f, 0.86f, 0.96f, 0.90f),
-            TextAlignmentOptions.Center);
-        subBadgeTxt.rectTransform.anchorMin = new Vector2(0f, 0f);
-        subBadgeTxt.rectTransform.anchorMax = new Vector2(1f, 0f);
-        subBadgeTxt.rectTransform.pivot = new Vector2(0.5f, 0f);
-        subBadgeTxt.rectTransform.anchoredPosition = new Vector2(0f, 7f);
-        subBadgeTxt.rectTransform.sizeDelta = new Vector2(-20f, 14f);
 
         // Coaxial Input & Output Ports are only active once a module is on the LOOP CIRCUIT BOARD (!isPalette)
         if (!isPalette && type != BlockType.Start)
@@ -952,7 +941,7 @@ public partial class UIManager : MonoBehaviour
 
         // Intentionally DO NOT auto-wire! Player drags from Output Port to Input Port themselves.
         RefreshWires();
-        SetStatusBanner($"MODULE [{CommandLabels.For(node.blockType)}] PLACED — DRAG PORTS TO WIRE YOUR LOOP!");
+        SetStatusBanner($"{CommandLabels.For(node.blockType)} added. Connect its ports to wire it in.");
         return node;
     }
 
@@ -1110,7 +1099,7 @@ public partial class UIManager : MonoBehaviour
         if (selectedClickPort == null)
         {
             selectedClickPort = port;
-            SetStatusBanner($"SELECTED {CommandLabels.For(port.ownerNode.blockType)} PORT — CLICK TARGET PORT TO WIRE");
+            SetStatusBanner($"{CommandLabels.For(port.ownerNode.blockType)} port selected. Click another port to connect.");
         }
         else
         {
@@ -1177,11 +1166,11 @@ public partial class UIManager : MonoBehaviour
 
         if (IsChainConnectedToEnd())
         {
-            SetStatusBanner($"CIRCUIT ARMED // {GetWiredGraphNodes().Count} MODULE(S) WIRED IN LOOP — CLICK PLAY!");
+            SetStatusBanner(LoopReadyMessage(GetWiredGraphNodes().Count));
         }
         else
         {
-            SetStatusBanner("WIRE CONNECTED — CONTINUE WIRING FROM [START] ALL THE WAY TO [LOOP]");
+            SetStatusBanner("Connected. Keep wiring until Start reaches Loop.");
         }
     }
 
@@ -1225,7 +1214,7 @@ public partial class UIManager : MonoBehaviour
         if (ordered.Count == 0)
         {
             RefreshWires();
-            SetStatusBanner("PLACE AT LEAST ONE MODULE ON THE BOARD FIRST!");
+            SetStatusBanner("Place a command on the board first.");
             return;
         }
 
@@ -1241,7 +1230,7 @@ public partial class UIManager : MonoBehaviour
 
         AudioManager.Instance?.PlayNodeConnect();
         RefreshWires();
-        SetStatusBanner($"CIRCUIT ARMED // {ordered.Count} MODULE(S) WIRED IN LOOP — CLICK PLAY!");
+        SetStatusBanner(LoopReadyMessage(ordered.Count));
     }
 
     public void RefreshWires()
@@ -1424,7 +1413,7 @@ public partial class UIManager : MonoBehaviour
 
         commands.Clear();
         RefreshWires();
-        SetStatusBanner("BOARD CLEARED — DRAG MODULES FROM COMMAND MODULES & WIRE [START] -> [LOOP]");
+        SetStatusBanner("Board cleared.");
     }
 
     private void OnCenterPlayStopClicked()
@@ -1450,7 +1439,7 @@ public partial class UIManager : MonoBehaviour
         // Require manual circuit wiring from START through placed modules to LOOP!
         if (!IsChainConnectedToEnd())
         {
-            SetStatusBanner("CIRCUIT OPEN! MANUALLY DRAG WIRES FROM [START] -> MODULES -> [LOOP] FIRST");
+            SetStatusBanner("The loop isn't closed yet. Wire Start through your commands to Loop.");
             AudioManager.Instance?.PlayBump();
             Debug.LogWarning("Circuit is not closed! Drag wires from START through your modules to LOOP.", this);
             return;
@@ -1459,7 +1448,7 @@ public partial class UIManager : MonoBehaviour
         SyncOrderedCommandsFromGraph();
         if (commands.Count == 0)
         {
-            SetStatusBanner("CIRCUIT OPEN! DRAG A MODULE TO THE BOARD & WIRE [START] -> MODULE -> [LOOP]");
+            SetStatusBanner("Add a command, then wire Start through it to Loop.");
             return;
         }
 
@@ -1558,7 +1547,7 @@ public partial class UIManager : MonoBehaviour
             if (old != null) Destroy(old.gameObject);
         }
         spawnedCommands.Clear();
-        SetStatusBanner("ROBOT RESET TO START TILE — READY TO DEPLOY");
+        SetStatusBanner("Robot is back at the start.");
     }
 
     // =====================================================================
@@ -1620,7 +1609,7 @@ public partial class UIManager : MonoBehaviour
         foreach (var node in graphNodes)
             if (node != null && node.IsFailureHighlighted) node.SetExecutionHighlight(false);
         if (statusBannerLabel != null) statusBannerLabel.color = new Color(.98f, .72f, .24f, .95f);
-        if (hadFeedback) SetStatusBanner("CIRCUIT CHANGED — CHECK THE WIRING, THEN RUN AGAIN");
+        if (hadFeedback) SetStatusBanner("Circuit changed. Check the wiring and run again.");
     }
 
     private void HandleExecutionEnded()
@@ -1653,7 +1642,7 @@ public partial class UIManager : MonoBehaviour
         }
         if (centerPlayStateLabel != null)
         {
-            centerPlayStateLabel.text = running ? "RESET" : "RUN LOOP";
+            centerPlayStateLabel.text = running ? "Reset" : "Run";
         }
     }
 
@@ -1675,16 +1664,16 @@ public partial class UIManager : MonoBehaviour
         victoryOverlay.transform.SetAsLastSibling();
 
         if (victoryTitleText != null)
-            victoryTitleText.text = hasNext ? $"{level.title} CLEARED!" : "CAMPAIGN COMPLETE!";
+            victoryTitleText.text = hasNext ? $"{DisplayTitle(level.title, manager.currentLevelIndex)} cleared" : "Campaign complete";
         if (victorySubText != null)
         {
             int totalLevels = manager != null ? manager.campaignLevels.Count : LevelCampaignCatalog.CampaignLevelCount;
             victorySubText.text = hasNext
-                ? $"LOOP VERIFIED IN {CommandCount} NODE(S)\nNEXT: {manager.campaignLevels[manager.currentLevelIndex + 1].title}"
-                : $"ALL {totalLevels} LEVELS COMPLETED!\nCONGRATULATIONS!";
+                ? $"Solved with {CommandCount} {(CommandCount == 1 ? "command" : "commands")}.\nNext: {DisplayTitle(manager.campaignLevels[manager.currentLevelIndex + 1].title, manager.currentLevelIndex + 1)}"
+                : $"You've finished all {totalLevels} levels.";
         }
         if (victoryNextLabel != null)
-            victoryNextLabel.text = hasNext ? "NEXT TEST LEVEL >>" : "PLAY AGAIN";
+            victoryNextLabel.text = hasNext ? "Next level" : "Play again";
         if (victoryNextButton != null)
             victoryNextButton.GetComponent<RectTransform>().anchoredPosition = new Vector2(0f, 16f);
     }
@@ -1724,10 +1713,11 @@ public partial class UIManager : MonoBehaviour
         var title = CreateStyledText(
             tr,
             "TunerTitle",
-            "CAMERA OPTICS LAB // TUNER",
+            "Camera",
             14f,
             new Color(0.00f, 0.90f, 1.00f, 1f),
             TextAlignmentOptions.Left);
+        title.fontStyle = FontStyles.Bold;
         title.rectTransform.anchorMin = new Vector2(0f, 1f);
         title.rectTransform.anchorMax = new Vector2(0f, 1f);
         title.rectTransform.pivot = new Vector2(0f, 1f);
@@ -1743,7 +1733,7 @@ public partial class UIManager : MonoBehaviour
         cbr.anchoredPosition = new Vector2(-10f, -8f);
         cbr.sizeDelta = new Vector2(26f, 24f);
         closeBtn.GetComponent<Image>().color = new Color(0.35f, 0.12f, 0.18f, 0.95f);
-        CreateStyledText(cbr, "Lbl", "X", 13f, Color.white, TextAlignmentOptions.Center);
+        CreateStyledText(cbr, "Lbl", "×", 15f, Color.white, TextAlignmentOptions.Center);
         var cb = closeBtn.GetComponent<Button>();
         cb.targetGraphic = closeBtn.GetComponent<Image>();
         cb.onClick.AddListener(() =>
@@ -1763,7 +1753,7 @@ public partial class UIManager : MonoBehaviour
         pr.sizeDelta = new Vector2(352f, 30f);
         var projImg = projBtn.GetComponent<Image>();
         projImg.color = new Color(0.12f, 0.22f, 0.38f, 0.95f);
-        camModeBtnLabel = CreateStyledText(pr, "ModeLbl", "PROJECTION: 2D ISOMETRIC", 13.5f, Color.white, TextAlignmentOptions.Center);
+        camModeBtnLabel = CreateStyledText(pr, "ModeLbl", "Projection: isometric", 13.5f, Color.white, TextAlignmentOptions.Center);
         var pb = projBtn.GetComponent<Button>();
         pb.targetGraphic = projImg;
         pb.onClick.AddListener(() =>
@@ -1776,7 +1766,7 @@ public partial class UIManager : MonoBehaviour
         camZoomReadout = CreateStyledText(
             tr,
             "ZoomReadout",
-            "ZOOM (ORTHO): 3.40 (P3 Sweet)",
+            "Zoom  3.40",
             13f,
             new Color(0.85f, 0.92f, 1f, 0.95f),
             TextAlignmentOptions.Left);
@@ -1786,16 +1776,16 @@ public partial class UIManager : MonoBehaviour
         camZoomReadout.rectTransform.anchoredPosition = new Vector2(14f, -90f);
         camZoomReadout.rectTransform.sizeDelta = new Vector2(250f, 26f);
 
-        CreateTunerMiniButton(tr, "ZoomOutBtn", new Vector2(285f, -90f), new Vector2(40f, 24f), "[-]",
+        CreateTunerMiniButton(tr, "ZoomOutBtn", new Vector2(285f, -90f), new Vector2(40f, 24f), "-",
             () => GameCameraController.Instance?.AdjustZoom(0.3f));
-        CreateTunerMiniButton(tr, "ZoomInBtn", new Vector2(335f, -90f), new Vector2(40f, 24f), "[+]",
+        CreateTunerMiniButton(tr, "ZoomInBtn", new Vector2(335f, -90f), new Vector2(40f, 24f), "+",
             () => GameCameraController.Instance?.AdjustZoom(-0.3f));
 
         // 3. FOV / Focal Length Row
         camFovReadout = CreateStyledText(
             tr,
             "FovReadout",
-            "FOV: 36° (Persp)",
+            "Field of view  —",
             13f,
             new Color(0.85f, 0.92f, 1f, 0.95f),
             TextAlignmentOptions.Left);
@@ -1805,16 +1795,16 @@ public partial class UIManager : MonoBehaviour
         camFovReadout.rectTransform.anchoredPosition = new Vector2(14f, -126f);
         camFovReadout.rectTransform.sizeDelta = new Vector2(250f, 26f);
 
-        CreateTunerMiniButton(tr, "FovDecBtn", new Vector2(285f, -126f), new Vector2(40f, 24f), "[-]",
+        CreateTunerMiniButton(tr, "FovDecBtn", new Vector2(285f, -126f), new Vector2(40f, 24f), "-",
             () => GameCameraController.Instance?.AdjustFov(-3f));
-        CreateTunerMiniButton(tr, "FovIncBtn", new Vector2(335f, -126f), new Vector2(40f, 24f), "[+]",
+        CreateTunerMiniButton(tr, "FovIncBtn", new Vector2(335f, -126f), new Vector2(40f, 24f), "+",
             () => GameCameraController.Instance?.AdjustFov(3f));
 
         // 4. Orbit Angles (Pitch / Yaw) Row
         camAngleReadout = CreateStyledText(
             tr,
             "AngleReadout",
-            "PITCH: 24° | YAW: -32°",
+            "Pitch 24°   Yaw -32°",
             12.5f,
             new Color(0.85f, 0.92f, 1f, 0.95f),
             TextAlignmentOptions.Left);
@@ -1834,20 +1824,20 @@ public partial class UIManager : MonoBehaviour
             () => GameCameraController.Instance?.AdjustYaw(6f));
 
         // 5. Preset Buttons (2x2 Grid)
-        CreateTunerPresetButton(tr, "PresetP3", new Vector2(98f, -204f), new Vector2(170f, 26f), "P3 SWEET SPOT",
+        CreateTunerPresetButton(tr, "PresetP3", new Vector2(98f, -204f), new Vector2(170f, 26f), "Default",
             () => GameCameraController.Instance?.SetPresetP3SweetSpot(), new Color(0.00f, 0.44f, 0.55f, 0.95f));
-        CreateTunerPresetButton(tr, "Preset3D", new Vector2(282f, -204f), new Vector2(170f, 26f), "3D PERSPECTIVE",
+        CreateTunerPresetButton(tr, "Preset3D", new Vector2(282f, -204f), new Vector2(170f, 26f), "Perspective",
             () => GameCameraController.Instance?.SetPreset3DPerspective(), new Color(0.20f, 0.28f, 0.48f, 0.95f));
-        CreateTunerPresetButton(tr, "PresetClose", new Vector2(98f, -236f), new Vector2(170f, 26f), "TACTICAL CLOSE",
+        CreateTunerPresetButton(tr, "PresetClose", new Vector2(98f, -236f), new Vector2(170f, 26f), "Close up",
             () => GameCameraController.Instance?.SetPresetTacticalClose(), new Color(0.16f, 0.32f, 0.36f, 0.95f));
-        CreateTunerPresetButton(tr, "PresetTop", new Vector2(282f, -236f), new Vector2(170f, 26f), "TOP-DOWN",
+        CreateTunerPresetButton(tr, "PresetTop", new Vector2(282f, -236f), new Vector2(170f, 26f), "Top down",
             () => GameCameraController.Instance?.SetPresetTopDown(), new Color(0.26f, 0.20f, 0.36f, 0.95f));
 
         // 6. Navigation hint at bottom
         var hints = CreateStyledText(
             tr,
             "NavHints",
-            "Scroll: Zoom | RMB Drag: Orbit | MMB Drag: Pan\nKeys: [P] 2D/3D | [C] Tuner | [R] Reset to P3",
+            "Scroll to zoom · Right-drag to orbit · Middle-drag to pan\nP switches 2D/3D · C opens this panel · R resets the view",
             10.5f,
             new Color(0.55f, 0.65f, 0.78f, 0.9f),
             TextAlignmentOptions.Center);
@@ -1914,28 +1904,28 @@ public partial class UIManager : MonoBehaviour
 
         bool isPersp = cam.isPerspective;
         if (camBtnLabel != null)
-            camBtnLabel.text = isPersp ? "CAM: 3D" : "CAM: ISO";
+            camBtnLabel.text = isPersp ? "3D view" : "Iso view";
 
         if (camModeBtnLabel != null)
-            camModeBtnLabel.text = isPersp ? "PROJECTION: 3D PERSPECTIVE" : "PROJECTION: 2D ISOMETRIC";
+            camModeBtnLabel.text = isPersp ? "Projection: perspective" : "Projection: isometric";
 
         if (camZoomReadout != null)
         {
             camZoomReadout.text = isPersp
-                ? $"DISTANCE: {cam.cameraDistance:F1}m"
-                : $"ZOOM (ORTHO): {cam.orthoSize:F2}  (P3 = 3.4)";
+                ? $"Distance  {cam.cameraDistance:F1} m"
+                : $"Zoom  {cam.orthoSize:F2}";
         }
 
         if (camFovReadout != null)
         {
             camFovReadout.text = isPersp
-                ? $"FOV: {cam.perspectiveFov:F0}° (Focal ~{Mathf.RoundToInt(1700f / Mathf.Max(1f, cam.perspectiveFov))}mm)"
-                : "FOV: N/A (Orthographic)";
+                ? $"Field of view  {cam.perspectiveFov:F0}°"
+                : "Field of view  —";
         }
 
         if (camAngleReadout != null)
         {
-            camAngleReadout.text = $"PITCH: {cam.pitchAngle:F0}°  |  YAW: {cam.yawAngle:F0}°";
+            camAngleReadout.text = $"Pitch {cam.pitchAngle:F0}°   Yaw {cam.yawAngle:F0}°";
         }
     }
 
@@ -1965,7 +1955,7 @@ public partial class UIManager : MonoBehaviour
         var tmp = go.GetComponent<TextMeshProUGUI>();
         tmp.text = content;
         tmp.fontSize = fontSize;
-        tmp.fontStyle = FontStyles.Bold;
+        tmp.fontStyle = FontStyles.Normal; // Headings and node names opt into bold.
         tmp.color = color;
         tmp.alignment = alignment;
         tmp.raycastTarget = false;

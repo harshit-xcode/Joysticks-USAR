@@ -367,13 +367,8 @@ public class ClaudeMascotAnimator : MonoBehaviour
 
     private void Update()
     {
+        if (!Application.isPlaying) return;
         if (mascotPivot == null || bodyGroup == null) return;
-        if (!Application.isPlaying)
-        {
-            ApplyPivotRotation(BasePresentationYaw);
-            mascotPivot.localScale = Vector3.one * MascotOverallScale;
-            return;
-        }
 
         if (player == null) player = GetComponentInParent<PlayerController>();
 

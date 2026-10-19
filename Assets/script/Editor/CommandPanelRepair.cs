@@ -100,6 +100,16 @@ public static class CommandPanelRepair
 
     public static void SetupActiveSceneForLevel(int levelIndex)
     {
+        if (EditorApplication.isPlayingOrWillChangePlaymode)
+        {
+            Debug.LogWarning("Stop Play Mode before running Scene Setup.");
+            return;
+        }
+        if (!Application.isBatchMode && !EditorUtility.DisplayDialog(
+                "Rebuild and Save Active Scene?",
+                "This rebuilds the board and configures the UI, then saves the active scene. Scene-authored changes may be replaced.",
+                "Rebuild Scene", "Cancel")) return;
+
         AssetDatabase.Refresh();
         EnsureTextureImportSettings();
 

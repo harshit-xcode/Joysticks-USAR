@@ -60,7 +60,7 @@ public class CodeExecutor : MonoBehaviour
 
         if (body.Count == 0)
         {
-            OnStatusMessage?.Invoke("CONNECT START → NODES → END FIRST!");
+            OnStatusMessage?.Invoke("Connect Start to Loop first.");
             Debug.LogWarning("Connect at least one node between START and END.", this);
             return;
         }
@@ -82,7 +82,7 @@ public class CodeExecutor : MonoBehaviour
     {
         yield return null;
         OnLoopPassStarted?.Invoke(currentPass);
-        OnStatusMessage?.Invoke($"EXECUTING LOOP — PASS #{currentPass}");
+        OnStatusMessage?.Invoke($"Running · pass {currentPass}");
 
         Vector2Int passStartGrid = player.GetCurrentTile() != null ? player.GetCurrentTile().gridPosition : Vector2Int.zero;
         int stationaryPasses = 0;
@@ -101,7 +101,7 @@ public class CodeExecutor : MonoBehaviour
             currentStepType = block.blockType;
             commandStartGrid = player.GetCurrentTile() != null ? player.GetCurrentTile().gridPosition : Vector2Int.zero;
             OnStepStarted?.Invoke(index, block.blockType);
-            OnStatusMessage?.Invoke($"PASS #{currentPass} // NODE {index + 1}: {CommandLabels.For(block.blockType)}");
+            OnStatusMessage?.Invoke($"Pass {currentPass} · step {index + 1} · {CommandLabels.For(block.blockType)}");
 
             yield return block.Execute(player);
 
@@ -125,7 +125,7 @@ public class CodeExecutor : MonoBehaviour
                 currentStepIndex = -1;
                 OnExecutionEnded?.Invoke();
                 OnExecutionFailed?.Invoke(failure);
-                OnStatusMessage?.Invoke("Recheck your Circuit");
+                OnStatusMessage?.Invoke("That didn't work. Check your circuit.");
                 yield break;
             }
 
@@ -137,7 +137,7 @@ public class CodeExecutor : MonoBehaviour
                     stationaryPasses++;
                     if (stationaryPasses >= 2)
                     {
-                        OnStatusMessage?.Invoke("LOOP BLOCKED BY OBSTACLES — REWIRE NODES!");
+                        OnStatusMessage?.Invoke("The robot is stuck. Try a different order.");
                     }
                 }
                 else
@@ -198,7 +198,7 @@ public class CodeExecutor : MonoBehaviour
     {
         ghostTrails?.FinishPass();
         StopExecution(false);
-        OnStatusMessage?.Invoke("GOAL REACHED // TEST DEPLOYMENT COMPLETE!");
+        OnStatusMessage?.Invoke("Goal reached.");
         Debug.Log("Goal reached. Command loop stopped; level complete.");
     }
 

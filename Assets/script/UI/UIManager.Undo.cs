@@ -68,7 +68,7 @@ public partial class UIManager
         var state = JsonUtility.FromJson<CircuitState>(undoHistory[undoHistory.Count - 1]);
         undoHistory.RemoveAt(undoHistory.Count - 1);
         RestoreCircuit(state);
-        SetStatusBanner("EDIT UNDONE — COMMAND BLOCKS AND WIRES RESTORED");
+        SetStatusBanner("Undone.");
     }
 
     private void RestoreCircuit(CircuitState state)

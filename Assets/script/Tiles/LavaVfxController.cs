@@ -377,8 +377,9 @@ public class LavaVfxController : MonoBehaviour
 
     private void Update()
     {
-        float t = (Application.isPlaying ? Time.time : (float)Time.realtimeSinceStartup) + seedOffset;
-        float dt = Application.isPlaying ? Time.deltaTime : 0.016f;
+        if (!Application.isPlaying) return;
+        float t = Time.time + seedOffset;
+        float dt = Time.deltaTime;
         EvaluateAnimation(t, dt);
     }
 

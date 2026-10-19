@@ -57,7 +57,7 @@ public partial class UIManager
             || !IsValidCircuitDraft(draft.circuit)) return;
         RestoreCircuit(draft.circuit);
         if (levelUndoHistories.TryGetValue(index, out var history)) undoHistory.AddRange(history);
-        SetStatusBanner("CIRCUIT RESTORED — YOUR SAVED BLOCKS AND WIRES ARE READY");
+        SetStatusBanner("Picked up where you left off.");
     }
 
     private bool IsValidCircuitDraft(CircuitState state)

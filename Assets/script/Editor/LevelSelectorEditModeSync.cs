@@ -1,22 +1,19 @@
 #if UNITY_EDITOR
 using UnityEditor;
-using UnityEditor.SceneManagement;
 using UnityEngine;
 
-// Older scenes may contain the former level-selector/audio HUD. Rebuild that stale
-// Edit-Mode preview after reload/open without saving or changing the preview level.
-[InitializeOnLoad]
+// Older scenes may contain the former level-selector/audio HUD. Run this repair manually
+// so opening or reloading a scene never changes authored UI behind the user's back.
 public static class LevelSelectorEditModeSync
 {
-    static LevelSelectorEditModeSync()
-    {
-        EditorApplication.delayCall += Sync;
-        EditorSceneManager.sceneOpened += (_, __) => EditorApplication.delayCall += Sync;
-    }
-
-    private static void Sync()
+    [MenuItem("Tools/Joysticks/Repair Legacy Edit-Mode HUD")]
+    public static void Sync()
     {
         if (Application.isBatchMode) return;
+        if (!EditorUtility.DisplayDialog(
+                "Repair Legacy HUD",
+                "This will change legacy HUD objects in the active scene. Continue only if you want to apply this repair.",
+                "Repair HUD", "Cancel")) return;
 
         // Also hide banners serialized in older scenes, without rebuilding the command board.
         foreach (var rect in Object.FindObjectsByType<RectTransform>(FindObjectsInactive.Include, FindObjectsSortMode.None))

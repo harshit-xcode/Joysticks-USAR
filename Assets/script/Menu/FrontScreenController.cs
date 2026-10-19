@@ -81,8 +81,8 @@ public sealed class FrontScreenController : MonoBehaviour
         sceneImage.transform.SetParent(safeRoot, false); Stretch(sceneImage.rectTransform);
         sceneImage.raycastTarget = false;
         BuildStage();
-        Label(safeRoot, "JOYSTIX BOT", new Vector2(.06f, .91f), new Vector2(700, 65), 44, Color.white);
-        instruction = Label(safeRoot, "Drag from START to an option.", new Vector2(.06f, .12f), new Vector2(1500, 54), 28, Color.white);
+        BuildTitle();
+        instruction = Label(safeRoot, "Drag from Start to an option.", new Vector2(.06f, .12f), new Vector2(1500, 54), 28, Color.white);
         BuildLevels(); BuildSettings();
         resumeButton = ButtonAt(safeRoot, "Resume", new Vector2(.735f, .95f), new Vector2(180, 42), BeginOrResume);
         resumeLabel = resumeButton.GetComponentInChildren<TextMeshProUGUI>();
@@ -154,10 +154,10 @@ public sealed class FrontScreenController : MonoBehaviour
             spark.GetComponent<Renderer>().sharedMaterial = Material(i % 2 == 0 ? Ice : Gold, true);
             Destroy(spark.GetComponent<Collider>());
         }
-        BuildNode("START", new Vector2(.57f, .51f), CommandLabels.LedColorFor(BlockType.Start));
-        BuildNode("NEW GAME", new Vector2(.83f, .70f), Gold);
-        BuildNode("LEVEL SELECT", new Vector2(.83f, .49f), Ice);
-        BuildNode("EXIT", new Vector2(.83f, .28f), new Color(1, .46f, .38f));
+        BuildNode("Start", new Vector2(.57f, .51f), CommandLabels.LedColorFor(BlockType.Start));
+        BuildNode("New game", new Vector2(.83f, .70f), Gold);
+        BuildNode("Levels", new Vector2(.83f, .49f), Ice);
+        BuildNode("Exit", new Vector2(.83f, .28f), new Color(1, .46f, .38f));
         wire = new GameObject("Live connection cable").AddComponent<LineRenderer>();
         wire.transform.SetParent(stage.transform, false); wire.gameObject.layer = StageLayer;
         wire.sharedMaterial = Material(Ice, true); wire.positionCount = 48;
@@ -214,7 +214,7 @@ public sealed class FrontScreenController : MonoBehaviour
 
         var led = NodeImage(card, "Header LED", new Vector2(0,1), new Vector2(32,-25), new Vector2(30,11), "LedPill", color);
         nodeLeds.Add(led);
-        var title = Label(card, caption, new Vector2(1,1), new Vector2(124,28), caption == "LEVEL SELECT" ? 15.5f : 18.5f, color);
+        var title = Label(card, caption, new Vector2(1,1), new Vector2(124,28), 18.5f, color);
         title.rectTransform.pivot = new Vector2(1,1); title.rectTransform.anchoredPosition = new Vector2(-12,-13);
         title.alignment = TextAlignmentOptions.Right;
 
@@ -386,7 +386,7 @@ public sealed class FrontScreenController : MonoBehaviour
         for (int i=0;i<mascot.legPivots.Count;i++) mascot.legPivots[i].localRotation = Quaternion.Euler(leap*(i%2==0 ? 32 : -32),0,0);
     }
     void ArmWire() { wiring = true; wire.enabled = true; instruction.text = "Choose an option. Esc cancels."; }
-    void CancelWire() { wiring = false; wire.enabled = false; instruction.text = "Drag from START to an option."; }
+    void CancelWire() { wiring = false; wire.enabled = false; instruction.text = "Drag from Start to an option."; }
     void DrawWire(Vector3 end)
     {
         Vector3 a = PortWorld(0) - stageCamera.transform.forward*.4f;
@@ -397,7 +397,7 @@ public sealed class FrontScreenController : MonoBehaviour
     {
         if (busy || !wiring || action < 1 || action > 3) yield break;
         busy = true; DrawWire(PortWorld(action));
-        instruction.text = (action == 1 ? "NEW GAME" : action == 2 ? "LEVEL SELECT" : "EXIT");
+        instruction.text = (action == 1 ? "New game" : action == 2 ? "Levels" : "Exit");
         yield return new WaitForSecondsRealtime(.35f);
         CancelWire(); busy = false;
         if (action == 1) { BeginOrResume(); LevelManager.Instance.StartNewCampaign(); }
@@ -410,7 +410,7 @@ public sealed class FrontScreenController : MonoBehaviour
         Time.timeScale = 0; menuRoot.SetActive(true); stage.SetActive(true);
         levelPanel.SetActive(false); settingsPanel.SetActive(false); menuButton.gameObject.SetActive(false);
         // LevelManager already loads the saved available level before the title opens.
-        resumeButton.gameObject.SetActive(true); resumeLabel.text = "RESUME";
+        resumeButton.gameObject.SetActive(true); resumeLabel.text = "Resume";
         CancelWire(); EventSystem.current?.SetSelectedGameObject(null);
     }
     public void BeginOrResume()
@@ -428,7 +428,7 @@ public sealed class FrontScreenController : MonoBehaviour
     }
     void BuildLevels()
     {
-        levelPanel = Modal("Campaign", "SELECT A LEVEL"); RefreshLevels();
+        levelPanel = Modal("Campaign", "Levels"); RefreshLevels();
     }
     void RefreshLevels()
     {
@@ -438,7 +438,7 @@ public sealed class FrontScreenController : MonoBehaviour
         for (int i=0;i<lm.campaignLevels.Count;i++)
         {
             int index=i; bool available = lm.IsLevelSolved(i) || i == lm.HighestUnlockedLevel-1;
-            string label = (i+1).ToString("00") + " / " + lm.campaignLevels[i].title + (lm.IsLevelSolved(i) ? "  ✓" : available ? "" : "  · LOCKED");
+            string label = (i+1).ToString("00") + "   " + UIManager.DisplayTitle(lm.campaignLevels[i].title, i) + (lm.IsLevelSolved(i) ? "  ✓" : available ? "" : "  · Locked");
             var b = ButtonAt(list,label,new Vector2(.23f+(i%2)*.29f,.72f-(i/2)*.105f),new Vector2(520,76),()=>
             {
                 // Close the display stage before registering the new gameplay board.
@@ -457,19 +457,44 @@ public sealed class FrontScreenController : MonoBehaviour
     }
     void BuildSettings()
     {
-        settingsPanel = Modal("Audio settings","AUDIO");
+        settingsPanel = Modal("Audio settings","Audio");
         VolumeRow("Music",.65f,GameVolume.Music,GameVolume.SetMusic);
         VolumeRow("Sound effects",.47f,GameVolume.Sfx,GameVolume.SetSfx);
     }
     void VolumeRow(string name,float y,float value,UnityEngine.Events.UnityAction<float> change)
     {
-        var label = Label(settingsPanel.transform,name+"  /  "+Mathf.RoundToInt(value*100)+"%",new Vector2(.25f,y+.06f),new Vector2(1000,50),30,Ice);
+        var label = Label(settingsPanel.transform,name+"   "+Mathf.RoundToInt(value*100)+"%",new Vector2(.25f,y+.06f),new Vector2(1000,50),30,Ice);
         var root = new GameObject(name,typeof(RectTransform),typeof(Image),typeof(Slider)); root.transform.SetParent(settingsPanel.transform,false);
         Place((RectTransform)root.transform,new Vector2(.25f,y),new Vector2(900,28)); root.GetComponent<Image>().color=new Color(.1f,.23f,.28f);
         var handle=new GameObject("Handle",typeof(RectTransform),typeof(Image)).GetComponent<RectTransform>(); handle.SetParent(root.transform,false); handle.sizeDelta=new Vector2(32,48);
         handle.GetComponent<Image>().color=Gold;
         var slider=root.GetComponent<Slider>(); slider.handleRect=handle; slider.targetGraphic=handle.GetComponent<Image>(); slider.value=value;
-        slider.onValueChanged.AddListener(v=> { change(v); label.text=name+"  /  "+Mathf.RoundToInt(v*100)+"%"; });
+        slider.onValueChanged.AddListener(v=> { change(v); label.text=name+"   "+Mathf.RoundToInt(v*100)+"%"; });
+    }
+    // Game title: bold white "JOYSTIX" with "BOT" in the ice accent, an ink edge and soft
+    // ice glow so it reads over the dusk sky, underlined by a short gold rule.
+    void BuildTitle()
+    {
+        var title = Label(safeRoot, "JOYSTIX <color=#45E6F2>BOT</color>", new Vector2(.06f, .93f), new Vector2(1000, 120), 96, Color.white);
+        title.name = "JOYSTIX BOT";
+        title.fontStyle = FontStyles.Bold;
+        title.characterSpacing = 6f;
+        title.textWrappingMode = TextWrappingModes.NoWrap;
+        title.alignment = TextAlignmentOptions.BottomLeft;
+        Material mat = title.fontMaterial; // Per-title instance; the shared font material is untouched.
+        title.outlineWidth = .12f;
+        title.outlineColor = Ink;
+        mat.EnableKeyword(ShaderUtilities.Keyword_Underlay);
+        mat.SetColor(ShaderUtilities.ID_UnderlayColor, new Color(Ice.r, Ice.g, Ice.b, .35f));
+        mat.SetFloat(ShaderUtilities.ID_UnderlayDilate, .4f);
+        mat.SetFloat(ShaderUtilities.ID_UnderlaySoftness, .6f);
+
+        var rule = new GameObject("Title gold rule", typeof(RectTransform), typeof(Image));
+        rule.transform.SetParent(safeRoot, false);
+        Place((RectTransform)rule.transform, new Vector2(.062f, .81f), new Vector2(260, 5));
+        var ruleImage = rule.GetComponent<Image>();
+        ruleImage.color = Gold;
+        ruleImage.raycastTarget = false;
     }
     static TextMeshProUGUI Label(Transform parent,string value,Vector2 anchor,Vector2 size,float fontSize,Color color)
     {

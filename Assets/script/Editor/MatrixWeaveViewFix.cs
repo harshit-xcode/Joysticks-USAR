@@ -1,32 +1,11 @@
 #if UNITY_EDITOR
 using System.Reflection;
 using UnityEditor;
-using UnityEditor.SceneManagement;
 using UnityEngine;
 
-// Editor Game-view magnification is independent of the in-game camera;2x crops HUD edges.
-[InitializeOnLoad]
+// Keep camera framing available as an explicit tool; scene reloads must not rewrite camera settings.
 public static class MatrixWeaveViewFix
 {
-    static MatrixWeaveViewFix()
-    {
-        EditorApplication.delayCall += FitAfterReload;
-        EditorSceneManager.sceneOpened += (_, __) => EditorApplication.delayCall += FitAfterReload;
-        EditorApplication.playModeStateChanged += change =>
-        {
-            if (change == PlayModeStateChange.EnteredPlayMode)
-                EditorApplication.delayCall += FitAfterReload;
-        };
-    }
-
-    static void FitAfterReload()
-    {
-        if (Application.isBatchMode) return;
-        var manager = Object.FindFirstObjectByType<LevelManager>();
-        if (manager == null || manager.currentLevelIndex != 8) return;
-        FitView();
-    }
-
     [MenuItem("Tools/Joysticks/Fit Matrix Weave View")]
     public static void FitView()
     {
