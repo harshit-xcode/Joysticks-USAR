@@ -27,6 +27,14 @@ public class PlayerController : MonoBehaviour
     private readonly Vector2Int leftDir = new Vector2Int(0, 1);
     private readonly Vector2Int rightDir = new Vector2Int(0, -1);
 
+    private ClaudeMascotAnimator cachedMascotAnimator;
+    private ClaudeMascotAnimator GetMascotAnimator()
+    {
+        if (cachedMascotAnimator == null)
+            cachedMascotAnimator = GetComponentInChildren<ClaudeMascotAnimator>();
+        return cachedMascotAnimator;
+    }
+
     public Tile GetCurrentTile() => currentTile;
 
     public Vector3 GetStandingPosition(Tile tile)
@@ -50,6 +58,7 @@ public class PlayerController : MonoBehaviour
         transform.rotation = Quaternion.Euler(0f, 90f, 0f);
         currentState = PlayerState.Idle;
         isCrossingLava = false;
+        GetMascotAnimator()?.ResetToIdle();
         TileManager.Instance.ResetDynamicEnvironment();
     }
 
@@ -60,7 +69,10 @@ public class PlayerController : MonoBehaviour
         transform.rotation = Quaternion.Euler(0f, 90f, 0f);
         isCrossingLava = false;
         if (currentState != PlayerState.Win && currentState != PlayerState.Dead)
+        {
             currentState = PlayerState.Idle;
+            GetMascotAnimator()?.ResetToIdle();
+        }
     }
 
     // WALK node: moves 1 tile forward (+X). Does nothing (bumps) if blocked.
@@ -97,6 +109,8 @@ public class PlayerController : MonoBehaviour
         }
 
         AudioManager.Instance?.PlayJump();
+        float jumpDuration = 1f / (Mathf.Max(0.5f, moveSpeed) * 0.82f);
+        GetMascotAnimator()?.NotifyJumpStart(jumpDuration);
         yield return StepToTileCoroutine(landingTile, jumpArcHeight, 0.82f, true);
     }
 
@@ -133,6 +147,8 @@ public class PlayerController : MonoBehaviour
         Vector3 basePos = GetStandingPosition(currentTile);
         Quaternion baseRot = Quaternion.Euler(0f, 90f, 0f);
         float duration = 1f / Mathf.Max(0.5f, moveSpeed);
+        GetMascotAnimator()?.NotifyPulseStart(duration);
+
         float elapsed = 0f;
         while (elapsed < duration)
         {
@@ -166,6 +182,8 @@ public class PlayerController : MonoBehaviour
         }
 
         AudioManager.Instance?.PlayWalk();
+        float walkDuration = 1f / (Mathf.Max(0.5f, moveSpeed) * speedMultiplier);
+        GetMascotAnimator()?.NotifyWalkStart(dir, walkDuration);
         yield return StepToTileCoroutine(nextTile, arcHeight, speedMultiplier, true);
     }
 
@@ -175,13 +193,8 @@ public class PlayerController : MonoBehaviour
 
         Vector3 startPos = transform.position;
         Vector3 endPos = GetStandingPosition(nextTile);
-        Vector3 moveDelta = (endPos - startPos);
-        moveDelta.y = 0f;
 
         Quaternion baseRot = Quaternion.Euler(0f, 90f, 0f);
-        Quaternion targetRot = moveDelta.sqrMagnitude > 0.001f
-            ? Quaternion.LookRotation(moveDelta.normalized, Vector3.up)
-            : baseRot;
 
         float elapsed = 0f;
         float duration = 1f / (Mathf.Max(0.5f, moveSpeed) * speedMultiplier);
@@ -196,8 +209,9 @@ public class PlayerController : MonoBehaviour
             pos.y += Mathf.Sin(t * Mathf.PI) * arcHeight;
             transform.position = pos;
 
-            float tilt = Mathf.Sin(t * Mathf.PI) * 10f;
-            transform.rotation = Quaternion.Slerp(baseRot, targetRot, Mathf.Sin(t * Mathf.PI * 0.8f)) * Quaternion.Euler(tilt, 0f, 0f);
+            // Keep base orientation so ClaudeMascotAnimator's 3/4 isometric face & expressions stay clearly visible!
+            float pitchTilt = Mathf.Sin(t * Mathf.PI) * (arcHeight > 0.5f ? 8f : 4f);
+            transform.rotation = baseRot * Quaternion.Euler(pitchTilt, 0f, 0f);
 
             yield return null;
         }
@@ -219,7 +233,9 @@ public class PlayerController : MonoBehaviour
         Vector3 basePos = currentTile != null ? GetStandingPosition(currentTile) : transform.position;
         Vector3 nudge = new Vector3(dir.x, 0f, dir.y).normalized * 0.22f;
 
-        float duration = 0.20f;
+        float duration = 0.22f;
+        GetMascotAnimator()?.NotifyBumpStart(dir, duration);
+
         float elapsed = 0f;
         while (elapsed < duration)
         {
@@ -233,3 +249,4 @@ public class PlayerController : MonoBehaviour
         yield return new WaitForSeconds(stepDelay * 0.5f);
     }
 }
+
