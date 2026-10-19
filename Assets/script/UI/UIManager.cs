@@ -1,6 +1,6 @@
 // UIManager.cs
 // Drives the split-screen Isometric 3D + Node-Graph interface:
-// - Top half: 3D Isometric scene viewport with camera controls
+// - Top half: 3D Isometric scene viewport with "DEPLOYMENT FACTORY - TEST X" header & level controls
 // - Center divider: Play / Stop / Reset / Auto-Wire controls
 // - Bottom-left: "NODE MODIFIERS" draggable node palette
 // - Bottom-right: "MACHINE LEARNING LAB" interactive node-graph workspace with START, END, and glowing wires
@@ -12,7 +12,7 @@ using UnityEngine.EventSystems;
 using UnityEngine.UI;
 using TMPro;
 
-public partial class UIManager : MonoBehaviour
+public class UIManager : MonoBehaviour
 {
     public static UIManager Instance { get; private set; }
 
@@ -55,12 +55,11 @@ public partial class UIManager : MonoBehaviour
     private RectTransform rootUiRect;
     private Transform boundSceneUiRoot;
     private RectTransform topHudPanel;
-    private TextMeshProUGUI levelHeadingLabel;
     private TextMeshProUGUI levelTitleLabel;
     private TextMeshProUGUI objectiveHintLabel;
     private TextMeshProUGUI statusBannerLabel;
-    private bool hasFailureFeedback;
-    private GameObject failureTileMarker;
+    private TextMeshProUGUI muteBtnLabel;
+    private readonly List<Image> levelPillImages = new List<Image>();
 
     // Camera Tuner HUD references
     private GameObject cameraTunerPanel;
@@ -85,8 +84,6 @@ public partial class UIManager : MonoBehaviour
     private TextMeshProUGUI victoryTitleText;
     private TextMeshProUGUI victorySubText;
     private Button victoryNextButton;
-    private TextMeshProUGUI victoryNextLabel;
-    private bool victoryIsCampaignComplete;
 
     // Interactive port wiring state
     private NodePortUI activeDragPort;
@@ -137,7 +134,6 @@ public partial class UIManager : MonoBehaviour
 
     private void OnDestroy()
     {
-        SaveDisplayedLevelDraft();
         UnsubscribeExecutorEvents();
         if (Instance == this) Instance = null;
     }
@@ -151,10 +147,6 @@ public partial class UIManager : MonoBehaviour
         codeExecutor.OnExecutionEnded += HandleExecutionEnded;
         codeExecutor.OnStatusMessage -= HandleStatusMessage;
         codeExecutor.OnStatusMessage += HandleStatusMessage;
-        codeExecutor.OnExecutionFailed -= HandleExecutionFailed;
-        codeExecutor.OnExecutionFailed += HandleExecutionFailed;
-        codeExecutor.OnFailureCleared -= HandleFailureCleared;
-        codeExecutor.OnFailureCleared += HandleFailureCleared;
     }
 
     private void UnsubscribeExecutorEvents()
@@ -163,8 +155,6 @@ public partial class UIManager : MonoBehaviour
         codeExecutor.OnStepStarted -= HandleStepStarted;
         codeExecutor.OnExecutionEnded -= HandleExecutionEnded;
         codeExecutor.OnStatusMessage -= HandleStatusMessage;
-        codeExecutor.OnExecutionFailed -= HandleExecutionFailed;
-        codeExecutor.OnFailureCleared -= HandleFailureCleared;
     }
 
     public void LoadDefaultSpritesIfMissing()
@@ -479,34 +469,42 @@ public partial class UIManager : MonoBehaviour
         topHudPanel.offsetMin = Vector2.zero;
         topHudPanel.offsetMax = Vector2.zero;
 
-        // Compact level identity sits immediately to the left of the camera button.
-        var heading = CreateUiObject("LevelHeading", topHudPanel, true);
-        var headingRect = heading.GetComponent<RectTransform>();
-        headingRect.anchorMin = headingRect.anchorMax = new Vector2(1f, 1f);
-        headingRect.pivot = new Vector2(1f, 1f);
-        headingRect.anchoredPosition = new Vector2(-144f, -16f);
-        headingRect.sizeDelta = new Vector2(220f, 36f);
-        var headingImage = heading.GetComponent<Image>();
-        headingImage.color = new Color(.055f, .09f, .14f, .88f);
-        headingImage.raycastTarget = true;
-        var headingButton = heading.AddComponent<Button>();
-        headingButton.targetGraphic = headingImage;
-        headingButton.onClick.AddListener(ToggleLevelReplayDropdown);
-        levelHeadingLabel = CreateStyledText(headingRect, "LevelNumberAndName", "", 13.5f,
-            new Color(.75f, .94f, 1f), TextAlignmentOptions.Center);
-        levelHeadingLabel.margin = new Vector4(10f, 0f, 10f, 0f);
-        levelHeadingLabel.enableAutoSizing = true;
-        levelHeadingLabel.fontSizeMin = 12f;
-        levelHeadingLabel.fontSizeMax = 13.5f;
+        // Keep the gameplay viewport free of the level title/instruction banner.
 
-        // Sound stays in the front screen; camera controls remain at the upper right.
+        // Top-Right Level Selector Bar (P1..P8 + Cam Tuner + Mute)
         GameObject rightBar = CreateUiObject("TopRightControls", topHudPanel);
         var rbRect = rightBar.GetComponent<RectTransform>();
         rbRect.anchorMin = new Vector2(1f, 1f);
         rbRect.anchorMax = new Vector2(1f, 1f);
         rbRect.pivot = new Vector2(1f, 1f);
         rbRect.anchoredPosition = new Vector2(-20f, -14f);
-        rbRect.sizeDelta = new Vector2(112f, 40f);
+        rbRect.sizeDelta = new Vector2(Mathf.Max(580f, LevelCampaignCatalog.CampaignLevelCount * 44f + 238f), 40f);
+
+        levelPillImages.Clear();
+        for (int i = 0; i < LevelCampaignCatalog.CampaignLevelCount; i++)
+        {
+            int levelIdx = i;
+            GameObject pill = CreateUiObject($"LevelBtn_{i + 1}", rbRect, true, true);
+            var pr = pill.GetComponent<RectTransform>();
+            pr.anchorMin = new Vector2(0f, 0f);
+            pr.anchorMax = new Vector2(0f, 1f);
+            pr.pivot = new Vector2(0f, 0.5f);
+            pr.anchoredPosition = new Vector2(i * 44f, 0f);
+            pr.sizeDelta = new Vector2(38f, -4f);
+
+            var img = pill.GetComponent<Image>();
+            img.color = i == 0 ? new Color(0.00f, 0.72f, 0.92f, 0.96f) : new Color(0.10f, 0.14f, 0.22f, 0.90f);
+            levelPillImages.Add(img);
+
+            CreateStyledText(pr, "Lbl", $"P{i + 1}", 14f, Color.white, TextAlignmentOptions.Center);
+            var btn = pill.GetComponent<Button>();
+            btn.targetGraphic = img;
+            btn.onClick.AddListener(() =>
+            {
+                if (LevelManager.Instance != null)
+                    LevelManager.Instance.LoadCampaignLevel(levelIdx, true);
+            });
+        }
 
         // Camera Lab / Tuner Button
         GameObject camBtnObj = CreateUiObject("CamTunerButton", rbRect, true, true);
@@ -514,7 +512,7 @@ public partial class UIManager : MonoBehaviour
         cr.anchorMin = new Vector2(1f, 0f);
         cr.anchorMax = new Vector2(1f, 1f);
         cr.pivot = new Vector2(1f, 0.5f);
-        cr.anchoredPosition = Vector2.zero;
+        cr.anchoredPosition = new Vector2(-118f, 0f);
         cr.sizeDelta = new Vector2(112f, -4f);
         var camImg = camBtnObj.GetComponent<Image>();
         camImg.color = new Color(0.12f, 0.22f, 0.36f, 0.95f);
@@ -526,6 +524,28 @@ public partial class UIManager : MonoBehaviour
             if (GameCameraController.Instance != null)
             {
                 GameCameraController.Instance.ToggleTunerPanel();
+            }
+        });
+
+        // Mute / Audio Button
+        GameObject muteBtnObj = CreateUiObject("MuteButton", rbRect, true, true);
+        var mr = muteBtnObj.GetComponent<RectTransform>();
+        mr.anchorMin = new Vector2(1f, 0f);
+        mr.anchorMax = new Vector2(1f, 1f);
+        mr.pivot = new Vector2(1f, 0.5f);
+        mr.anchoredPosition = Vector2.zero;
+        mr.sizeDelta = new Vector2(112f, -4f);
+        var muteImg = muteBtnObj.GetComponent<Image>();
+        muteImg.color = new Color(0.10f, 0.14f, 0.22f, 0.92f);
+        muteBtnLabel = CreateStyledText(mr, "MuteLbl", "AUDIO: ON", 13.5f, new Color(0.55f, 0.92f, 1f), TextAlignmentOptions.Center);
+        var muteBtn = muteBtnObj.GetComponent<Button>();
+        muteBtn.targetGraphic = muteImg;
+        muteBtn.onClick.AddListener(() =>
+        {
+            if (AudioManager.Instance != null)
+            {
+                AudioManager.Instance.ToggleMute();
+                muteBtnLabel.text = AudioManager.Instance.isMuted ? "AUDIO: OFF" : "AUDIO: ON";
             }
         });
 
@@ -731,10 +751,6 @@ public partial class UIManager : MonoBehaviour
         // No separate RESET button: the Play button itself toggles RUN <-> STOP (stopping always
         // sends the robot back to START), so a half-finished run can never be resumed after editing.
 
-        CreateDividerUtilityButton(parent, "UndoGraphBtn", new Vector2(-92f, 0f), new Vector2(102f, 34f),
-            "UNDO", new Color(0.10f, 0.30f, 0.38f, 0.96f), UndoLastEdit);
-        undoButton = parent.Find("UndoGraphBtn").GetComponent<Button>();
-
         // Clear Board button on the right of Play (no Auto-Wire button so player wires manually!)
         CreateDividerUtilityButton(parent, "ClearGraphBtn", new Vector2(92f, 0f), new Vector2(102f, 34f),
             "CLEAR", new Color(0.32f, 0.12f, 0.18f, 0.96f), ClearAllSlots);
@@ -775,7 +791,7 @@ public partial class UIManager : MonoBehaviour
         vr.anchorMax = new Vector2(0.5f, 0.74f);
         vr.pivot = new Vector2(0.5f, 0.5f);
         vr.anchoredPosition = Vector2.zero;
-        vr.sizeDelta = new Vector2(660f, 195f);
+        vr.sizeDelta = new Vector2(660f, 175f);
         victoryOverlay.GetComponent<Image>().color = new Color(0.08f, 0.10f, 0.14f, 0.96f);
 
         // Neon green top accent bar
@@ -795,26 +811,18 @@ public partial class UIManager : MonoBehaviour
             24f,
             new Color(0.32f, 0.98f, 0.52f, 1f),
             TextAlignmentOptions.Center);
-        victoryTitleText.enableAutoSizing = true;
-        victoryTitleText.fontSizeMin = 16f;
-        victoryTitleText.fontSizeMax = 24f;
-        victoryTitleText.rectTransform.anchorMin = victoryTitleText.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
-        victoryTitleText.rectTransform.anchoredPosition = new Vector2(0f, 52f);
+        victoryTitleText.rectTransform.anchoredPosition = new Vector2(0f, 36f);
         victoryTitleText.rectTransform.sizeDelta = new Vector2(620f, 38f);
 
         victorySubText = CreateStyledText(
             vr,
             "VictorySub",
-            "LOOP SEQUENCE VERIFIED",
+            "LOOP SEQUENCE VERIFIED — NEW NODE MODIFIER UNLOCKED",
             14.5f,
             new Color(0.84f, 0.88f, 0.94f, 1f),
             TextAlignmentOptions.Center);
-        victorySubText.enableAutoSizing = true;
-        victorySubText.fontSizeMin = 11f;
-        victorySubText.fontSizeMax = 14.5f;
-        victorySubText.rectTransform.anchorMin = victorySubText.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
-        victorySubText.rectTransform.anchoredPosition = new Vector2(0f, 8f);
-        victorySubText.rectTransform.sizeDelta = new Vector2(620f, 46f);
+        victorySubText.rectTransform.anchoredPosition = new Vector2(0f, 2f);
+        victorySubText.rectTransform.sizeDelta = new Vector2(620f, 28f);
 
         GameObject nextBtnObj = CreateUiObject("NextDeploymentBtn", vr, true, true);
         var nbr = nextBtnObj.GetComponent<RectTransform>();
@@ -826,42 +834,35 @@ public partial class UIManager : MonoBehaviour
         var nbImg = nextBtnObj.GetComponent<Image>();
         nbImg.color = new Color(0.18f, 0.68f, 0.36f, 1f);
 
-        victoryNextLabel = CreateStyledText(nbr, "NextLabel", "NEXT TEST LEVEL >>", 16f, Color.white, TextAlignmentOptions.Center);
+        CreateStyledText(nbr, "NextLabel", "NEXT TEST LEVEL >>", 16f, Color.white, TextAlignmentOptions.Center);
 
         victoryNextButton = nextBtnObj.GetComponent<Button>();
         victoryNextButton.targetGraphic = nbImg;
         victoryNextButton.onClick.AddListener(() =>
         {
             HideVictoryBanner();
-            if (LevelManager.Instance == null) return;
-            if (victoryIsCampaignComplete)
-                LevelManager.Instance.LoadCampaignLevel(0, true);
-            else
+            if (LevelManager.Instance != null)
                 LevelManager.Instance.LoadNextLevel();
         });
 
         victoryOverlay.SetActive(false);
     }
 
-    private void UpdateLevelHeading(LevelDefinition level, int levelIndex)
-    {
-        if (levelHeadingLabel == null) return;
-        int number = levelIndex + 1;
-        string name = level != null ? (level.title ?? "") : "";
-        // Campaign titles already contain L1., L2., etc.; display the number only once.
-        string prefix = $"L{number}. ";
-        if (name.StartsWith(prefix, System.StringComparison.Ordinal)) name = name.Substring(prefix.Length);
-        levelHeadingLabel.text = string.IsNullOrWhiteSpace(name) ? $"LEVEL {number}" : $"LEVEL {number} — {name}";
-        levelHeadingLabel.text += "  ▼";
-        float width = Mathf.Clamp(levelHeadingLabel.GetPreferredValues(levelHeadingLabel.text, 10000f, 36f).x + 20f, 120f, 320f);
-        ((RectTransform)levelHeadingLabel.transform.parent).sizeDelta = new Vector2(width, 36f);
-    }
-
-    // Configures the UI and level heading for the current campaign level.
+    // Configures the UI for a specific LevelDefinition (Level 1..8)
     public void ConfigureForLevel(LevelDefinition level, int levelIdx, int totalLevels)
     {
-        if (rootUiRect == null || levelPillImages.Count != LevelCampaignCatalog.CampaignLevelCount) EnsureSplitScreenNodeLabUI();
+        if (rootUiRect == null) EnsureSplitScreenNodeLabUI();
         HideVictoryBanner();
+
+        for (int i = 0; i < levelPillImages.Count; i++)
+        {
+            if (levelPillImages[i] != null)
+            {
+                levelPillImages[i].color = (i == levelIdx)
+                    ? new Color(0.00f, 0.72f, 0.92f, 0.98f)
+                    : new Color(0.10f, 0.14f, 0.22f, 0.90f);
+            }
+        }
 
         // Clear existing placed graph nodes and palette cards
         foreach (var gn in graphNodes)
@@ -902,7 +903,6 @@ public partial class UIManager : MonoBehaviour
         RefreshWires();
         UpdatePlayButtonVisual(false);
         SetStatusBanner("CIRCUIT OPEN — DRAG MODULES TO BOARD & DRAG PORTS TO WIRE [START] -> [LOOP]");
-        RestoreLevelDraft(level, levelIdx);
         UpdateCameraTunerReadout();
     }
 
@@ -978,11 +978,11 @@ public partial class UIManager : MonoBehaviour
         GameObject hlObj = CreateUiObject("HighlightGlow", rt, true);
         var hlRect = hlObj.GetComponent<RectTransform>();
         StretchFull(hlRect);
-        hlRect.offsetMin = new Vector2(-2f, -2f);
-        hlRect.offsetMax = new Vector2(2f, 2f);
+        hlRect.offsetMin = new Vector2(-6f, -6f);
+        hlRect.offsetMax = new Vector2(6f, 6f);
         hlObj.transform.SetAsFirstSibling();
         var hlImg = hlObj.GetComponent<Image>();
-        hlImg.color = new Color(0.35f, 1.0f, 0.72f, 0.08f);
+        hlImg.color = new Color(0.35f, 1.0f, 0.72f, 0.90f);
         hlImg.raycastTarget = false;
         hlImg.enabled = false;
         card.highlightBorder = hlImg;
@@ -1134,8 +1134,6 @@ public partial class UIManager : MonoBehaviour
 
     private NodeCardUI SpawnGraphNodeFromPalette(NodeCardUI paletteCard, Vector2 localLabPos)
     {
-        RecordCircuitEdit();
-        ClearFailureFeedback();
         // Move card out of COMMAND MODULES dock onto the LOOP CIRCUIT BOARD unwired!
         paletteCard.gameObject.SetActive(false);
         ReflowPaletteCards();
@@ -1177,9 +1175,6 @@ public partial class UIManager : MonoBehaviour
     public void RemoveGraphNode(NodeCardUI graphNode)
     {
         if (!IsEditingAllowed || graphNode == null || graphNode.isFixedEndpoint) return;
-        if (!graphNodes.Contains(graphNode)) return;
-        RecordCircuitEdit();
-        ClearFailureFeedback();
 
         // Heal wire if this node was connected between prev and next
         NodeCardUI prev = graphNode.connectedPrev;
@@ -1190,8 +1185,7 @@ public partial class UIManager : MonoBehaviour
 
         if (prev != null && next != null && !(prev == startNodeCard && next == endNodeCard))
         {
-            prev.connectedNext = next;
-            next.connectedPrev = prev;
+            ConnectNodes(prev, next);
         }
 
         graphNodes.Remove(graphNode);
@@ -1326,8 +1320,6 @@ public partial class UIManager : MonoBehaviour
     public void DisconnectPort(NodePortUI port)
     {
         if (!IsEditingAllowed || port == null || port.ownerNode == null) return;
-        RecordCircuitEdit();
-        ClearFailureFeedback();
         if (port.isOutputPort)
         {
             var next = port.ownerNode.connectedNext;
@@ -1359,13 +1351,11 @@ public partial class UIManager : MonoBehaviour
             walker = walker.connectedNext;
         }
 
-        RecordCircuitEdit();
         if (fromNode.connectedNext != null)
             fromNode.connectedNext.connectedPrev = null;
         if (toNode.connectedPrev != null)
             toNode.connectedPrev.connectedNext = null;
 
-        ClearFailureFeedback();
         fromNode.connectedNext = toNode;
         toNode.connectedPrev = fromNode;
 
@@ -1400,8 +1390,6 @@ public partial class UIManager : MonoBehaviour
     public void AutoWireAllGraphNodes()
     {
         if (!IsEditingAllowed || startNodeCard == null || endNodeCard == null) return;
-        RecordCircuitEdit();
-        ClearFailureFeedback();
 
         startNodeCard.connectedNext = null;
         endNodeCard.connectedPrev = null;
@@ -1578,11 +1566,9 @@ public partial class UIManager : MonoBehaviour
             }
         }
 
-        RecordCircuitEdit();
         // Fallback if added programmatically beyond palette stock
         int idx = graphNodes.Count;
         Vector2 pos = SnapToGrid(new Vector2(-220f + idx * 175f, 0f));
-        ClearFailureFeedback();
         NodeCardUI node = CreateNodeCardObject(type, nodesLayer, false, false);
         node.rectTransform.anchoredPosition = pos;
         graphNodes.Add(node);
@@ -1600,8 +1586,6 @@ public partial class UIManager : MonoBehaviour
     public void ClearAllSlots()
     {
         if (!IsEditingAllowed) StopProgram();
-        RecordCircuitEdit();
-        ClearFailureFeedback();
 
         for (int i = graphNodes.Count - 1; i >= 0; i--)
         {
@@ -1642,7 +1626,6 @@ public partial class UIManager : MonoBehaviour
         if (codeExecutor == null || codeExecutor.IsRunning()) return;
 
         HideVictoryBanner();
-        ClearFailureFeedback();
 
         // Require manual circuit wiring from START through placed modules to LOOP!
         if (!IsChainConnectedToEnd())
@@ -1731,7 +1714,6 @@ public partial class UIManager : MonoBehaviour
     public void ResetProgram()
     {
         if (codeExecutor != null) codeExecutor.StopExecution();
-        ClearFailureFeedback();
         ClearExecutionHighlights();
         UpdatePlayButtonVisual(false);
         HideVictoryBanner();
@@ -1772,52 +1754,6 @@ public partial class UIManager : MonoBehaviour
                 wired[i].SetExecutionHighlight(i == stepIndex);
         }
         RefreshWires();
-    }
-
-    private void HandleExecutionFailed(ExecutionFailure failure)
-    {
-        ClearExecutionHighlights();
-        var wired = GetWiredGraphNodes();
-        if (failure.CommandIndex >= 0 && failure.CommandIndex < wired.Count)
-            wired[failure.CommandIndex].SetFailureHighlight();
-        hasFailureFeedback = true;
-        if (statusBannerLabel != null) statusBannerLabel.color = new Color(1f, .34f, .40f);
-        Tile tile = TileManager.Instance != null ? TileManager.Instance.GetTile(failure.Coordinate) : null;
-        if (tile == null) return;
-        failureTileMarker = new GameObject("FailureTileHighlight");
-        failureTileMarker.transform.SetParent(tile.transform, false);
-        var line = failureTileMarker.AddComponent<LineRenderer>();
-        line.useWorldSpace = false;
-        line.loop = true;
-        line.positionCount = 4;
-        line.widthMultiplier = .09f;
-        line.sharedMaterial = IsometricBoardBuilder.GetOrCreateMaterial("FailureTileOutline",
-            new Color(1f, .06f, .14f), true, 1f);
-        float half = TileManager.Instance.cellSpacing * .48f;
-        line.SetPositions(new[] { new Vector3(-half, .12f, -half), new Vector3(-half, .12f, half),
-            new Vector3(half, .12f, half), new Vector3(half, .12f, -half) });
-    }
-
-    public void ClearFailureFeedback()
-    {
-        codeExecutor?.ClearFailure();
-        HandleFailureCleared();
-    }
-
-    private void HandleFailureCleared()
-    {
-        bool hadFeedback = hasFailureFeedback;
-        hasFailureFeedback = false;
-        if (failureTileMarker != null)
-        {
-            failureTileMarker.SetActive(false);
-            Destroy(failureTileMarker);
-            failureTileMarker = null;
-        }
-        foreach (var node in graphNodes)
-            if (node != null && node.IsFailureHighlighted) node.SetExecutionHighlight(false);
-        if (statusBannerLabel != null) statusBannerLabel.color = new Color(.98f, .72f, .24f, .95f);
-        if (hadFeedback) SetStatusBanner("CIRCUIT CHANGED — CHECK THE WIRING, THEN RUN AGAIN");
     }
 
     private void HandleExecutionEnded()
@@ -1863,27 +1799,17 @@ public partial class UIManager : MonoBehaviour
     public void ShowVictoryBanner(LevelDefinition level, bool hasNextLevel)
     {
         if (victoryOverlay == null) return;
-        var manager = LevelManager.Instance;
-        if (manager != null) manager.EnsureCampaignInitialized();
-        bool hasNext = hasNextLevel && manager != null
-            && manager.currentLevelIndex + 1 < manager.campaignLevels.Count;
-        victoryIsCampaignComplete = !hasNext;
         victoryOverlay.SetActive(true);
         victoryOverlay.transform.SetAsLastSibling();
 
         if (victoryTitleText != null)
-            victoryTitleText.text = hasNext ? $"{level.title} CLEARED!" : "CAMPAIGN COMPLETE!";
+            victoryTitleText.text = $"{level.title} CLEARED!";
         if (victorySubText != null)
         {
-            int totalLevels = manager != null ? manager.campaignLevels.Count : LevelCampaignCatalog.CampaignLevelCount;
-            victorySubText.text = hasNext
-                ? $"LOOP VERIFIED IN {CommandCount} NODE(S)\nNEXT: {manager.campaignLevels[manager.currentLevelIndex + 1].title}"
-                : $"ALL {totalLevels} LEVELS COMPLETED!\nCONGRATULATIONS!";
+            victorySubText.text = hasNextLevel
+                ? $"LOOP VERIFIED IN {commands.Count} NODE(S) — NEXT NODE MODIFIER UNLOCKED!"
+                : "ALL 7 CHRONO-LOOP PROTOCOLS COMPLETED! CONGRATULATIONS!";
         }
-        if (victoryNextLabel != null)
-            victoryNextLabel.text = hasNext ? "NEXT TEST LEVEL >>" : "PLAY AGAIN";
-        if (victoryNextButton != null)
-            victoryNextButton.GetComponent<RectTransform>().anchoredPosition = new Vector2(0f, 16f);
     }
 
     public void HideVictoryBanner()

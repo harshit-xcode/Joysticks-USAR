@@ -13,21 +13,14 @@ public class CodeExecutor : MonoBehaviour
     public event Action<int> OnLoopPassStarted;
     public event Action OnExecutionEnded;
     public event Action<string> OnStatusMessage;
-    public event Action<ExecutionFailure> OnExecutionFailed;
-    public event Action OnFailureCleared;
 
-    LoopGhostTrail ghostTrails;
     bool isRunning;
-    ExecutionFailure pendingFailure;
-    int currentStepIndex = -1;
-    BlockType currentStepType;
-    Vector2Int commandStartGrid;
+    bool restartAfterRespawn;
     Coroutine runCoroutine;
     ProgramLoopCursor cursor;
     int currentPass;
 
     public int CurrentPass => currentPass;
-    public ExecutionFailure LastFailure { get; private set; }
 
     public void Run(List<CodeBlock> sequence)
     {
@@ -65,13 +58,8 @@ public class CodeExecutor : MonoBehaviour
             return;
         }
 
-        if (ghostTrails == null)
-            ghostTrails = GetComponent<LoopGhostTrail>() ?? gameObject.AddComponent<LoopGhostTrail>();
-        ghostTrails.BeginRun(player);
         cursor = new ProgramLoopCursor(body.Count);
-        ClearFailure();
-        pendingFailure = null;
-        currentStepIndex = -1;
+        restartAfterRespawn = false;
         isRunning = true;
         currentPass = 1;
         TileManager.Instance?.ResetDynamicEnvironment();
@@ -97,9 +85,6 @@ public class CodeExecutor : MonoBehaviour
             var block = body[index];
             if (block == null) { StopExecution(); yield break; }
 
-            currentStepIndex = index;
-            currentStepType = block.blockType;
-            commandStartGrid = player.GetCurrentTile() != null ? player.GetCurrentTile().gridPosition : Vector2Int.zero;
             OnStepStarted?.Invoke(index, block.blockType);
             OnStatusMessage?.Invoke($"PASS #{currentPass} // NODE {index + 1}: {CommandLabels.For(block.blockType)}");
 
@@ -107,26 +92,26 @@ public class CodeExecutor : MonoBehaviour
 
             if (!isRunning || player == null || LevelComplete()) break;
 
-            if (pendingFailure == null)
+            if (!restartAfterRespawn)
             {
                 TileManager.Instance?.CompleteBeat(player);
             }
 
-            if (pendingFailure != null)
+            if (restartAfterRespawn)
             {
-                // End this attempt once. Respawn may finish independently; never restart the program.
-                ghostTrails?.FinishPass();
-                var failure = pendingFailure;
-                LastFailure = failure;
-                pendingFailure = null;
-                cursor.Complete();
-                isRunning = false;
-                runCoroutine = null;
-                currentStepIndex = -1;
-                OnExecutionEnded?.Invoke();
-                OnExecutionFailed?.Invoke(failure);
-                OnStatusMessage?.Invoke("Recheck your Circuit");
-                yield break;
+                OnStatusMessage?.Invoke("HAZARD HIT — RESPAWNING AT START...");
+                while (isRunning && player != null && player.currentState == PlayerState.Dead)
+                    yield return null;
+                if (!isRunning || player == null || LevelComplete()) break;
+
+                TileManager.Instance?.ResetDynamicEnvironment();
+                restartAfterRespawn = false;
+                cursor.RestartIteration();
+                currentPass = 1;
+                stationaryPasses = 0;
+                OnLoopPassStarted?.Invoke(currentPass);
+                OnStatusMessage?.Invoke("RESPAWNED — RETRYING LOOP PASS #1");
+                continue;
             }
 
             if (index == body.Count - 1)
@@ -146,7 +131,6 @@ public class CodeExecutor : MonoBehaviour
                 }
 
                 currentPass++;
-                ghostTrails?.BeginPass(currentPass);
                 OnLoopPassStarted?.Invoke(currentPass);
                 yield return new WaitForSeconds(Mathf.Max(.02f, loopDelay));
             }
@@ -156,7 +140,6 @@ public class CodeExecutor : MonoBehaviour
             }
         }
 
-        ghostTrails?.FinishPass();
         cursor?.Complete();
         isRunning = false;
         runCoroutine = null;
@@ -171,48 +154,22 @@ public class CodeExecutor : MonoBehaviour
 
     public void RestartAfterRespawn()
     {
-        // Compatibility for older callers: a respawn now ends the attempt rather than retrying it.
-        ReportHazardFailure(player != null ? player.GetCurrentTile() : null);
-    }
-
-    public void ReportHazardFailure(Tile tile)
-    {
-        if (!isRunning || pendingFailure != null || currentStepIndex < 0) return;
-        string reason = tile is PhaseSpikeTile
-            ? (tile.gridPosition == commandStartGrid ? "stayed on raised spikes" : "landed on raised spikes")
-            : tile is PhaseGateTile ? "was caught by a closing laser gate"
-            : tile is LavaTile ? "landed on red spikes (lava)" : "hit a hazard";
-        pendingFailure = new ExecutionFailure(currentPass, currentStepIndex, currentStepType,
-            tile != null ? tile.gridPosition : Vector2Int.zero,
-            (TileManager.Instance != null ? TileManager.Instance.CurrentBeat : 0) + 1, reason);
-    }
-
-    public void ClearFailure()
-    {
-        if (LastFailure == null) return;
-        LastFailure = null;
-        OnFailureCleared?.Invoke();
+        if (isRunning) restartAfterRespawn = true;
     }
 
     public void CompleteLevel()
     {
-        ghostTrails?.FinishPass();
-        StopExecution(false);
+        StopExecution();
         OnStatusMessage?.Invoke("GOAL REACHED // TEST DEPLOYMENT COMPLETE!");
         Debug.Log("Goal reached. Command loop stopped; level complete.");
     }
 
-    public void StopExecution() { StopExecution(true); }
-
-    void StopExecution(bool clearGhostTrails)
+    public void StopExecution()
     {
-        if (clearGhostTrails) ghostTrails?.ClearTrails();
         bool wasRunning = isRunning;
         isRunning = false;
         cursor?.Complete();
-        pendingFailure = null;
-        currentStepIndex = -1;
-        ClearFailure();
+        restartAfterRespawn = false;
         if (runCoroutine != null) StopCoroutine(runCoroutine);
         runCoroutine = null;
         if (player != null) player.StopAtCurrentTile();

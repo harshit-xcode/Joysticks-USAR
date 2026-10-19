@@ -52,7 +52,7 @@ public struct TileCellData
 public class LevelDefinition
 {
     public int levelIndex = 1;
-    public string title = "L1. First Loop";
+    public string title = "PROTOCOL 01 // CLOSED LOOP";
     public string objectiveHint = "DRAG [WALK] TO THE BOARD & MANUALLY WIRE START -> WALK -> LOOP";
     public List<NodeLoadoutItem> unlockedNodes = new List<NodeLoadoutItem>();
     public List<TileCellData> cells = new List<TileCellData>();
@@ -63,7 +63,7 @@ public static class LevelCampaignCatalog
 {
     // Keep in sync with CreateCampaignLevels(): used to detect stale serialized campaigns and size the P1..Pn selector.
     public const int CampaignLevelCount = 9;
-    public const string FinalLevelTitle = "L9. Final Weave";
+    public const string FinalLevelTitle = "PROTOCOL 09 // MATRIX WEAVE";
 
     public static List<LevelDefinition> CreateDefault7Levels()
     {
@@ -75,14 +75,14 @@ public static class LevelCampaignCatalog
         var levels = new List<LevelDefinition>();
 
         // =====================================================================
-        // LEVEL 1: L1. First Loop
+        // LEVEL 1: PROTOCOL 01 // CLOSED LOOP
         // Unlocks: WALK (+1 tile)
         // Solution: START -> WALK -> LOOP
         // =====================================================================
         var lvl1 = new LevelDefinition
         {
             levelIndex = 1,
-            title = "L1. First Loop",
+            title = "PROTOCOL 01 // CLOSED LOOP",
             objectiveHint = "DRAG [WALK] TO THE CIRCUIT BOARD, THEN DRAG PORTS TO WIRE: START -> WALK -> LOOP"
         };
         lvl1.unlockedNodes.Add(new NodeLoadoutItem(BlockType.Walk, 2));
@@ -94,7 +94,7 @@ public static class LevelCampaignCatalog
         levels.Add(lvl1);
 
         // =====================================================================
-        // LEVEL 2: L2. Spike Hop
+        // LEVEL 2: PROTOCOL 02 // PHASE LEAP
         // Unlocks: JUMP (Leaps from tile X to X+2, skipping X+1!)
         // Order matters: WALK -> JUMP vaults over Lava at X=2 and X=5,
         // whereas JUMP -> WALK lands directly on X=2 Lava!
@@ -103,7 +103,7 @@ public static class LevelCampaignCatalog
         var lvl2 = new LevelDefinition
         {
             levelIndex = 2,
-            title = "L2. Spike Hop",
+            title = "PROTOCOL 02 // PHASE LEAP",
             objectiveHint = "NEW MODULE: [JUMP] LEAPS OVER 1 TILE (1 -> 3). ORDER YOUR LOOP TO SKIP THE SPIKES!"
         };
         lvl2.unlockedNodes.Add(new NodeLoadoutItem(BlockType.Walk, 2));
@@ -118,14 +118,14 @@ public static class LevelCampaignCatalog
         levels.Add(lvl2);
 
         // =====================================================================
-        // LEVEL 3: L3. Wall Trick
+        // LEVEL 3: PROTOCOL 03 // WALL CLAMP
         // Unlocks: LEFT + Obstacle Asymmetry (blocked moves stay in place!)
         // Solution: START -> WALK -> LEFT -> LOOP
         // =====================================================================
         var lvl3 = new LevelDefinition
         {
             levelIndex = 3,
-            title = "L3. Wall Trick",
+            title = "PROTOCOL 03 // WALL CLAMP",
             objectiveHint = "NEW MODULE: [LEFT] — BLOCKED MOVES DO NOTHING! USE WALLS FOR LOOP ASYMMETRY"
         };
         lvl3.unlockedNodes.Add(new NodeLoadoutItem(BlockType.Walk, 2));
@@ -143,7 +143,7 @@ public static class LevelCampaignCatalog
         levels.Add(lvl3);
 
         // =====================================================================
-        // LEVEL 4: L4. Lane Weaver (Grand Finale)
+        // LEVEL 4: PROTOCOL 04 // PHASE WEAVE (Grand Finale)
         // Unlocks: RIGHT (All 4 modules: 1x JUMP, 1x WALK, 1x LEFT, 1x RIGHT)
         // Designed with 2 Intuitive Traps + 1 "AHA!" Epiphany:
         // - Intuitive Trap #1 (Linear Fork Read: J -> W -> L or J -> W -> R):
@@ -161,7 +161,7 @@ public static class LevelCampaignCatalog
         var lvl4 = new LevelDefinition
         {
             levelIndex = 4,
-            title = "L4. Lane Weaver",
+            title = "PROTOCOL 04 // PHASE WEAVE",
             objectiveHint = "FINAL TEST — TWO BRIDGES ARE TRAPS. USE GATE & BACKSTOP WALLS TO WEAVE ALL 4 MODULES!"
         };
         lvl4.unlockedNodes.Add(new NodeLoadoutItem(BlockType.Lava, 1));      // 1x JUMP
@@ -203,7 +203,7 @@ public static class LevelCampaignCatalog
         levels.Add(lvl4);
 
         // =====================================================================
-        // LEVEL 5: L5. Power Pulse (Act II Introduction)
+        // LEVEL 5: PROTOCOL 05 // PHASE PULSE (Act II Introduction)
         // Unlocks: PULSE (BlockType.Wait) + Dynamic Laser Phase Gates + Hydraulic Phase Spikes
         // - [PULSE] holds position for 1 beat, emits an EMP shockwave, and flips all Laser Gates!
         // - Hydraulic Phase Spikes alternate UP (Lethal) <-> DOWN (Safe) on EVERY beat!
@@ -212,7 +212,7 @@ public static class LevelCampaignCatalog
         var lvl5 = new LevelDefinition
         {
             levelIndex = 5,
-            title = "L5. Power Pulse",
+            title = "PROTOCOL 05 // PHASE PULSE",
             objectiveHint = "NEW MODULE: [PULSE] FLIPS LASER GATES & ADVANCES THE BEAT CLOCK. WATCH THE HYDRAULIC SPIKES!"
         };
         lvl5.unlockedNodes.Add(new NodeLoadoutItem(BlockType.Wait, 1)); // 1x PULSE
@@ -229,7 +229,7 @@ public static class LevelCampaignCatalog
         levels.Add(lvl5);
 
         // =====================================================================
-        // LEVEL 6: L6. Beat Breaker
+        // LEVEL 6: PROTOCOL 06 // CHRONO OVERDRIVE
         // Uses ALL 5 MODULES (1x JUMP, 1x LEFT, 1x PULSE, 1x WALK, 1x RIGHT).
         // Engineered with 2 Intuitive Traps + 1 "AHA!" Epiphany:
         // - Intuitive Trap #1 (Early Pulse at (2,0): J -> P -> L -> W -> R or J -> P -> W -> R -> L):
@@ -254,7 +254,7 @@ public static class LevelCampaignCatalog
         var lvl6 = new LevelDefinition
         {
             levelIndex = 6,
-            title = "L6. Beat Breaker",
+            title = "PROTOCOL 06 // CHRONO OVERDRIVE",
             objectiveHint = "WEAVE ALL 5 MODULES! TIME YOUR [PULSE] TO SYNC SPIKE BEATS & LASER BACKSTOPS"
         };
         lvl6.unlockedNodes.Add(new NodeLoadoutItem(BlockType.Lava, 1));      // 1x JUMP
@@ -297,7 +297,7 @@ public static class LevelCampaignCatalog
         levels.Add(lvl6);
 
         // =====================================================================
-        // LEVEL 7: L7. Circuit Maze (Grand Finale)
+        // LEVEL 7: PROTOCOL 07 // DYNAMIC MATRIX (Grand Finale)
         // A large 4-row x 11-column factory floor with multiple paths, choices, and genuine puzzle depth.
         // Provides a generous 7-node loadout (2x WALK, 2x JUMP, 1x LEFT, 1x RIGHT, 1x PULSE).
         // Players can design their own loop strategy across 9 distinct routes:
@@ -308,7 +308,7 @@ public static class LevelCampaignCatalog
         var lvl7 = new LevelDefinition
         {
             levelIndex = 7,
-            title = "L7. Circuit Maze",
+            title = "PROTOCOL 07 // DYNAMIC MATRIX",
             objectiveHint = "GRAND FINALE — EXPANDED SECTOR! WIRE A 4-6 NODE LOOP: WEAVE LANES, TIME GATES, OR VAULT SPIKES"
         };
         lvl7.unlockedNodes.Add(new NodeLoadoutItem(BlockType.Walk, 2));      // 2x WALK
@@ -363,7 +363,7 @@ public static class LevelCampaignCatalog
         levels.Add(lvl7);
 
         // =====================================================================
-        // LEVEL 8: L8. Neon Detour
+        // LEVEL 8: PROTOCOL 08 // ROTATION RUN
         // Eight tiles with role highlights and symbols, no text (numbers are tile IDs from the design sheet, not grid indices):
         //   [7 START]-[8 WALK]-[9 GATE]-[10 ROTATE]
         //                                   |
@@ -378,7 +378,7 @@ public static class LevelCampaignCatalog
         var lvl8 = new LevelDefinition
         {
             levelIndex = 8,
-            title = "L8. Neon Detour",
+            title = "PROTOCOL 08 // ROTATION RUN",
             objectiveHint = "[PULSE] OPENS THE LASER GATE. [LEFT] SWITCHES LANES — THEN [JUMP] THE SPIKES TO REACH THE EXIT!"
         };
         lvl8.unlockedNodes.Add(new NodeLoadoutItem(BlockType.Walk, 2));      // 2x WALK

@@ -140,8 +140,21 @@ public static class IsometricBoardBuilder
             }
             else if (cell.type == TileType.Lava)
             {
-                // Dynamic volcanic magma cauldron with animated flowing lava, bubbles, fire, embers & rising ash VFX!
-                LavaVfxController.BuildOnTile(tileObj.transform);
+                // Glowing red hazard strip + 3D spikes (matching screenshot!)
+                CreateBox(tileObj.transform, "HazardBase", new Vector3(0f, 0.07f, 0f), new Vector3(1.52f, 0.08f, 1.52f), lavaGlow);
+                for (int sx = -1; sx <= 1; sx++)
+                {
+                    for (int sz = -1; sz <= 1; sz++)
+                    {
+                        var spike = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                        spike.name = $"Spike_{sx}_{sz}";
+                        spike.transform.SetParent(tileObj.transform, false);
+                        spike.transform.localPosition = new Vector3(sx * 0.44f, 0.22f, sz * 0.44f);
+                        spike.transform.localScale = new Vector3(0.32f, 0.48f, 0.32f);
+                        spike.GetComponent<Renderer>().sharedMaterial = spikeRed;
+                        Object.DestroyImmediate(spike.GetComponent<Collider>());
+                    }
+                }
             }
             else if (cell.type == TileType.PhaseSpikeUp || cell.type == TileType.PhaseSpikeDown)
             {
@@ -398,8 +411,26 @@ public static class IsometricBoardBuilder
             return;
         }
 
-        // Build & rig Claude's iconic terracotta mascot ("Clawd") with articulated arms, 8 legs, and expressive 3D face!
-        ClaudeMascotAnimator.BuildOn(player, visRoot.transform);
+        // Blocky dark silhouette robot with two vertical glowing eyes (matching screenshot!)
+        Material bodyMat = GetOrCreateMaterial("RobotSilhouette", new Color(0.05f, 0.05f, 0.07f), false, 0.25f);
+        Material trimMat = GetOrCreateMaterial("RobotTrim", new Color(0.14f, 0.15f, 0.19f), false, 0.4f);
+        Material eyeMat = GetOrCreateMaterial("RobotEyeGlow", new Color(0.75f, 0.92f, 1.00f), true, 0.9f);
+
+        // Legs
+        CreateBox(visRoot.transform, "LeftLeg", new Vector3(0f, 0.18f, 0.18f), new Vector3(0.26f, 0.36f, 0.22f), bodyMat);
+        CreateBox(visRoot.transform, "RightLeg", new Vector3(0f, 0.18f, -0.18f), new Vector3(0.26f, 0.36f, 0.22f), bodyMat);
+        // Torso & Head (square blocky robot from screenshot)
+        CreateBox(visRoot.transform, "BodyHead", new Vector3(0f, 0.68f, 0f), new Vector3(0.68f, 0.74f, 0.72f), bodyMat);
+        CreateBox(visRoot.transform, "TopCrown", new Vector3(0f, 1.08f, 0f), new Vector3(0.52f, 0.08f, 0.56f), trimMat);
+        // Stubby Side Arms
+        CreateBox(visRoot.transform, "LeftArm", new Vector3(0f, 0.58f, 0.46f), new Vector3(0.28f, 0.32f, 0.20f), bodyMat);
+        CreateBox(visRoot.transform, "RightArm", new Vector3(0f, 0.58f, -0.46f), new Vector3(0.28f, 0.32f, 0.20f), bodyMat);
+        // Glowing vertical eyes on front (+Z in local space since robot rotates to 90 Y = +X world)
+        CreateBox(visRoot.transform, "LeftEye", new Vector3(0.14f, 0.74f, 0.35f), new Vector3(0.10f, 0.24f, 0.06f), eyeMat);
+        CreateBox(visRoot.transform, "RightEye", new Vector3(-0.14f, 0.74f, 0.35f), new Vector3(0.10f, 0.24f, 0.06f), eyeMat);
+        // Also put eyes visible toward camera side (+X/-Z isometric angle) so they're always visible from the isometric camera!
+        CreateBox(visRoot.transform, "FrontLeftEye", new Vector3(0.35f, 0.74f, 0.14f), new Vector3(0.06f, 0.24f, 0.10f), eyeMat);
+        CreateBox(visRoot.transform, "FrontRightEye", new Vector3(0.35f, 0.74f, -0.14f), new Vector3(0.06f, 0.24f, 0.10f), eyeMat);
     }
 
     public static void FrameCameraForLevel(Camera cam, LevelDefinition level, float cellSpacing, Texture2D customBackdropTex = null)

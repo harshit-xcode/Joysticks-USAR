@@ -1,7 +1,7 @@
 // PlayerRespawn.cs
 // Handles sending the player back to the Start tile.
 // Called by LavaTile when the player steps on lava without a LavaBlock.
-// A hazard ends the active program; respawn returns the robot to Start without retrying.
+// The active command loop waits for respawn and retries automatically.
 
 using System.Collections;
 using UnityEngine;
@@ -20,7 +20,7 @@ public class PlayerRespawn : MonoBehaviour
     }
 
     // Triggered when the player hits a lava tile without a LavaBlock.
-    // Captures the failing tile before respawn changes position and resets the beat clock.
+    // Restarts the current loop iteration after sending the robot back to Start.
     public void Respawn()
     {
         // Prevent multiple respawns at the same time
@@ -28,11 +28,11 @@ public class PlayerRespawn : MonoBehaviour
 
         playerController.currentState = PlayerState.Dead;
 
-        // Report the current command's failure; execution stops at the command boundary.
+        // Ask the active loop to restart its body after respawn
         CodeExecutor executor = FindFirstObjectByType<CodeExecutor>();
         if (executor != null)
         {
-            executor.ReportHazardFailure(playerController.GetCurrentTile());
+            executor.RestartAfterRespawn();
         }
 
         respawnRoutine = StartCoroutine(DoRespawn());

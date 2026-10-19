@@ -1,5 +1,5 @@
 // LevelManager.cs
-// Manages the current level and saves campaign unlocks/completion between launches.
+// Manages the state of the current level and the 7-level scalable campaign progression.
 // Supports both Edit-Mode scene-authored boards and dynamic multi-level transitions.
 
 using System.Collections.Generic;
@@ -9,8 +9,6 @@ using UnityEngine.SceneManagement;
 public class LevelManager : MonoBehaviour
 {
     public static LevelManager Instance { get; private set; }
-    public const string HighestUnlockedLevelKey = "Joysticks.Progress.HighestUnlockedLevel";
-    public const string SolvedLevelKeyPrefix = "Joysticks.Progress.SolvedLevel.";
 
     [Header("Core References")]
     public PlayerController player;
@@ -18,7 +16,7 @@ public class LevelManager : MonoBehaviour
     public Transform boardRoot;
     public float cellSpacing = 2.0f;
 
-    [Header("Campaign")]
+    [Header("7-Level Scalable Campaign")]
     [Min(0)] public int currentLevelIndex = 0;
     public List<LevelDefinition> campaignLevels = new List<LevelDefinition>();
 
@@ -32,10 +30,7 @@ public class LevelManager : MonoBehaviour
     public GameObject customRobotVisualPrefab;
 
     private bool levelWon = false;
-    private bool[] solvedLevels;
     public bool IsLevelComplete => levelWon;
-    // Saved level numbers are one-based; currentLevelIndex and IsLevelSolved use zero-based indices.
-    public int HighestUnlockedLevel { get; private set; } = 1;
 
     public LevelDefinition CurrentLevel
     {
@@ -85,83 +80,7 @@ public class LevelManager : MonoBehaviour
             IsometricBoardBuilder.StyleRobot(player, customRobotVisualPrefab);
         }
 
-        RestoreProgress();
-        // First-time players start at Level 1; returning players resume the next unlocked puzzle.
-        // The saved editor preview is never used as the starting level.
-        LoadCampaignLevel(HighestUnlockedLevel - 1, true);
-    }
-
-    public void RestoreProgress()
-    {
-        EnsureCampaignInitialized();
-        int count = campaignLevels.Count;
-        HighestUnlockedLevel = Mathf.Clamp(PlayerPrefs.GetInt(HighestUnlockedLevelKey, 1), 1, count);
-        solvedLevels = new bool[count];
-        for (int i = 0; i < count; i++)
-        {
-            solvedLevels[i] = PlayerPrefs.GetInt(SolvedLevelKeyPrefix + (i + 1), 0) == 1;
-            // Recover the unlock from solved flags if the highest-unlocked key is missing or stale.
-            if (solvedLevels[i]) HighestUnlockedLevel = Mathf.Max(HighestUnlockedLevel, Mathf.Min(i + 2, count));
-        }
-    }
-
-    public bool IsLevelSolved(int levelIndex)
-    {
-        EnsureCampaignInitialized();
-        if (levelIndex < 0 || levelIndex >= campaignLevels.Count) return false;
-        if (solvedLevels == null || solvedLevels.Length != campaignLevels.Count) RestoreProgress();
-        return solvedLevels[levelIndex];
-    }
-
-    void SaveSolvedLevel()
-    {
-        if (solvedLevels == null || solvedLevels.Length != campaignLevels.Count) RestoreProgress();
-        solvedLevels[currentLevelIndex] = true;
-        HighestUnlockedLevel = Mathf.Max(HighestUnlockedLevel, Mathf.Min(currentLevelIndex + 2, campaignLevels.Count));
-        PlayerPrefs.SetInt(SolvedLevelKeyPrefix + (currentLevelIndex + 1), 1);
-        PlayerPrefs.SetInt(HighestUnlockedLevelKey, HighestUnlockedLevel);
-        PlayerPrefs.Save();
-    }
-
-    // Player-facing replay entry point: an unlock alone is not a completed level.
-    public bool ReplayClearedLevel(int levelIndex)
-    {
-        if (!IsLevelSolved(levelIndex)) return false;
-        LoadCampaignLevel(levelIndex, true);
-        return true;
-    }
-
-    // The current unfinished puzzle remains available when returning from a replay.
-    public bool SelectAvailableLevel(int levelIndex)
-    {
-        EnsureCampaignInitialized();
-        if (levelIndex < 0 || levelIndex >= campaignLevels.Count) return false;
-        if (!IsLevelSolved(levelIndex) && levelIndex != HighestUnlockedLevel - 1) return false;
-        LoadCampaignLevel(levelIndex, true);
-        return true;
-    }
-
-    // NEW GAME starts a fresh campaign. Resume never calls this method.
-    public void StartNewCampaign()
-    {
-        EnsureCampaignInitialized();
-        FindFirstObjectByType<CodeExecutor>()?.StopExecution();
-        if (uiManager == null)
-            uiManager = UIManager.Instance != null ? UIManager.Instance : FindFirstObjectByType<UIManager>();
-
-        // Stop ConfigureForLevel from saving the previous circuit back after deletion.
-        if (uiManager != null) uiManager.ClearCampaignDrafts(campaignLevels.Count);
-        else
-            for (int i = 1; i <= campaignLevels.Count; i++)
-                PlayerPrefs.DeleteKey(UIManager.CircuitDraftKeyPrefix + i);
-
-        for (int i = 1; i <= campaignLevels.Count; i++)
-            PlayerPrefs.DeleteKey(SolvedLevelKeyPrefix + i);
-        HighestUnlockedLevel = 1;
-        solvedLevels = new bool[campaignLevels.Count];
-        PlayerPrefs.SetInt(HighestUnlockedLevelKey, 1);
-        PlayerPrefs.Save();
-        LoadCampaignLevel(0, true);
+        LoadCampaignLevel(currentLevelIndex, true);
     }
 
     public void LoadCampaignLevel(int index, bool rebuildBoard = true)
@@ -220,7 +139,6 @@ public class LevelManager : MonoBehaviour
         if (levelWon) return;
 
         levelWon = true;
-        SaveSolvedLevel();
         if (player != null) player.currentState = PlayerState.Win;
 
         CodeExecutor executor = FindFirstObjectByType<CodeExecutor>();
